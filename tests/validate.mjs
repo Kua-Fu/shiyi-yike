@@ -33,6 +33,40 @@ assert.equal(index.poems.length, 2000);
 const indexIds = new Set(index.poems.map((poem) => poem.id));
 assert.equal(indexIds.size, 2000, "诗词索引 ID 必须唯一");
 
+const searchIndex = readJson("data/poems/search.json");
+assert.equal(searchIndex.count, 2000, "全文搜索索引应覆盖全部诗词");
+assert.equal(searchIndex.records.length, 2000);
+const searchIds = new Set(searchIndex.records.map(([id]) => id));
+assert.equal(searchIds.size, 2000, "全文搜索索引 ID 必须唯一");
+for (const id of indexIds) assert.ok(searchIds.has(id), `全文搜索索引缺少诗词：${id}`);
+assert.ok(
+  searchIndex.records.some(([, text]) => text.includes("床前明月光")),
+  "全文搜索索引应能命中原文诗句",
+);
+assert.ok(
+  searchIndex.records.some(([, text]) => text.includes("明月几时有")),
+  "全文搜索索引应能命中宋词原文",
+);
+
+const authorData = readJson("data/authors.json");
+assert.equal(authorData.counts.total, 406, "应覆盖诗库中的全部 406 位作者");
+assert.ok(authorData.counts.sourced >= 400, "开放语料作者简介覆盖率应不低于 400 位");
+assert.equal(authorData.authors.length, authorData.counts.total);
+const authorKeys = new Set(
+  authorData.authors.map((author) => `${author.dynasty}:${author.name}`),
+);
+assert.equal(authorKeys.size, authorData.authors.length, "作者人物简介不得重复");
+for (const poem of index.poems) {
+  assert.ok(
+    authorKeys.has(`${poem.dynasty}:${poem.author}`),
+    `缺少${poem.dynasty}代作者${poem.author}的人物简介`,
+  );
+}
+for (const author of authorData.authors) {
+  assert.ok(author.biography.length >= 8, `${author.name}的人物简介缺少基本说明`);
+  assert.ok(author.works >= 1, `${author.name}缺少诗库作品数量`);
+}
+
 const bodyIds = new Set();
 const chunkDirectory = path.join(projectRoot, "data/poems/chunks");
 const chunkFiles = fs.readdirSync(chunkDirectory).filter((name) => name.endsWith(".json")).sort();
@@ -58,14 +92,25 @@ assert.doesNotMatch(newTabHtml, /https?:\/\//, "新标签页不应依赖远程�
 assert.match(newTabHtml, /data-category="收藏"/, "顶部应提供收藏浏览入口");
 assert.match(newTabHtml, /id="result-trigger"/, "“首可赏”数量应提供列表入口");
 assert.match(newTabHtml, /id="poem-list-dialog"/, "应提供当前筛选结果的诗词列表弹层");
+assert.match(newTabHtml, /id="search-trigger"/, "顶部应提供全库诗词搜索入口");
+assert.match(newTabHtml, /id="search-dialog"/, "应提供全库诗词搜索弹层");
+assert.match(newTabHtml, /id="global-search-input"/, "搜索弹层应提供关键词输入框");
+assert.match(newTabHtml, /id="author-dialog"/, "应提供诗人、词人人物简介弹层");
+assert.match(newTabHtml, /id="author-works-action"/, "人物简介应提供作者作品入口");
 
 const appSource = fs.readFileSync(path.join(projectRoot, "app.js"), "utf8");
 assert.match(appSource, /state\.category === "收藏"/, "收藏入口应筛选本地收藏 ID");
 assert.match(appSource, /诗笺尚空/, "收藏为空时应提供明确提示");
 assert.match(appSource, /function openPoemList\(\)/, "应支持打开当前筛选结果列表");
-assert.match(appSource, /showPoem\(poem, `已从列表打开/, "点击列表项应直接进入诗词正文");
+assert.match(appSource, /showPoem\(poem, options\.message \|\|/, "点击列表项应直接进入诗词正文");
+assert.match(appSource, /function openGlobalSearch\(\)/, "应支持打开全库诗词搜索");
+assert.match(appSource, /function renderGlobalSearch\(\)/, "应支持渲染全库搜索结果");
+assert.match(appSource, /fetch\(`data\/poems\/search\.json/, "全文索引必须从扩展包本地加载");
+assert.match(appSource, /function openAuthorDialog\(poem\)/, "点击作者应支持打开人物简介");
+assert.match(appSource, /function showActiveAuthorWorks\(\)/, "人物简介应可进入作者作品筛选");
+assert.match(appSource, /fetch\(`data\/authors\.json/, "作者资料必须从扩展包本地加载");
 
 const extensionStyles = fs.readFileSync(path.join(projectRoot, "extension.css"), "utf8");
 assert.match(extensionStyles, /height <= 820px/, "应适配商店截图常用的 1280×800 视口");
 
-console.log("✓ Manifest V3、收藏与筛选列表入口、扩展资源和 2000 首诗词数据均通过校验");
+console.log("✓ Manifest V3、全文搜索、406 位作者简介、收藏筛选及 2000 首诗词数据均通过校验");

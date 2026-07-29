@@ -1,14 +1,20 @@
 const DATA_VERSION = "dc2d8e3bbd41be88";
 const FAVORITES_KEY = "poem-favorites-v2";
+const MAX_SEARCH_RESULTS = 120;
 
 const state = {
   index: [],
+  poemsById: new Map(),
+  authors: new Map(),
   category: "全部",
   author: "",
   tag: "",
   current: null,
+  activeAuthor: null,
   favorites: new Set(),
   chunks: new Map(),
+  searchRecordsPromise: null,
+  searchRequestId: 0,
   requestId: 0,
   busy: false,
 };
@@ -41,6 +47,21 @@ const elements = {
   poemListSearch: document.querySelector("#poem-list-search"),
   poemList: document.querySelector("#poem-list"),
   poemListEmpty: document.querySelector("#poem-list-empty"),
+  searchTrigger: document.querySelector("#search-trigger"),
+  searchDialog: document.querySelector("#search-dialog"),
+  searchDialogClose: document.querySelector("#search-dialog-close"),
+  globalSearchInput: document.querySelector("#global-search-input"),
+  searchSummary: document.querySelector("#search-summary"),
+  searchResults: document.querySelector("#search-results"),
+  searchEmpty: document.querySelector("#search-empty"),
+  authorDialog: document.querySelector("#author-dialog"),
+  authorDialogName: document.querySelector("#author-dialog-name"),
+  authorDialogMeta: document.querySelector("#author-dialog-meta"),
+  authorDialogBiography: document.querySelector("#author-dialog-biography"),
+  authorDialogSource: document.querySelector("#author-dialog-source"),
+  authorDialogClose: document.querySelector("#author-dialog-close"),
+  authorWorksAction: document.querySelector("#author-works-action"),
+  authorWorksCount: document.querySelector("#author-works-count"),
 };
 
 function makeElement(tag, className, text) {
@@ -164,6 +185,7 @@ function setBusy(busy) {
   elements.authorSelect.disabled = busy || !poemsInCurrentCategory().length;
   elements.tagSelect.disabled = busy || !poemsInCurrentCategory().length;
   elements.resultTrigger.disabled = busy || !filteredPoems().length;
+  elements.searchTrigger.disabled = busy || !state.index.length;
   elements.favoriteAction.disabled = busy || !state.current;
   elements.nextAction.disabled = busy || !filteredPoems().length;
   elements.copyAction.disabled = busy || !state.current;
@@ -196,7 +218,7 @@ function poemMatchesListSearch(poem, query) {
     .includes(query);
 }
 
-function createPoemListItem(poem, position) {
+function createPoemListItem(poem, position, options = {}) {
   const button = makeElement("button", "poem-list-item");
   button.type = "button";
   button.setAttribute("aria-current", String(state.current?.id === poem.id));
@@ -214,6 +236,9 @@ function createPoemListItem(poem, position) {
       `${poem.dynasty} · ${poem.author}${poem.tags.length ? ` · ${poem.tags.slice(0, 3).join(" / ")}` : ""}`,
     ),
   );
+  if (options.excerpt) {
+    main.append(makeElement("span", "poem-list-item-excerpt", options.excerpt));
+  }
   const mark = makeElement(
     "span",
     "poem-list-item-mark",
@@ -222,8 +247,12 @@ function createPoemListItem(poem, position) {
   mark.setAttribute("aria-hidden", "true");
   button.append(index, main, mark);
   button.addEventListener("click", () => {
-    elements.poemListDialog.close();
-    showPoem(poem, `已从列表打开《${poem.title}》`);
+    if (options.onOpen) {
+      options.onOpen(poem);
+    } else {
+      elements.poemListDialog.close();
+    }
+    showPoem(poem, options.message || `已从列表打开《${poem.title}》`);
   });
   return button;
 }
@@ -256,6 +285,195 @@ function openPoemList() {
   elements.poemListClose.focus();
 }
 
+function normalizeSearchValue(value) {
+  return value
+    .normalize("NFKC")
+    .toLocaleLowerCase("zh-CN")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+async function loadSearchRecords() {
+  if (!state.searchRecordsPromise) {
+    // 全文索引仅在用户打开搜索后按需读取，避免每个新标签页都解析额外数据。
+    state.searchRecordsPromise = fetch(`data/poems/search.json?v=${DATA_VERSION}`)
+      .then((response) => {
+        if (!response.ok) throw new Error(`搜索索引读取失败：${response.status}`);
+        return response.json();
+      })
+      .then((data) => {
+        if (!Array.isArray(data.records) || data.records.length !== state.index.length) {
+          throw new Error("搜索索引与诗库数量不一致");
+        }
+        return data.records.map(([id, text, excerpt]) => ({ id, text, excerpt }));
+      })
+      .catch((error) => {
+        state.searchRecordsPromise = null;
+        throw error;
+      });
+  }
+  return state.searchRecordsPromise;
+}
+
+function searchScore(poem, record, query) {
+  const title = normalizeSearchValue(poem.title);
+  const author = normalizeSearchValue(poem.author);
+  if (title === query) return 100;
+  if (author === query) return 90;
+  if (title.includes(query)) return 80;
+  if (author.includes(query)) return 70;
+  if (poem.tags.some((tag) => normalizeSearchValue(tag) === query)) return 50;
+  return record.text.indexOf(query) >= 0 ? 20 : 10;
+}
+
+async function renderGlobalSearch() {
+  const query = normalizeSearchValue(elements.globalSearchInput.value);
+  const requestId = ++state.searchRequestId;
+  elements.searchResults.replaceChildren();
+  elements.searchResults.hidden = true;
+
+  if (!query) {
+    elements.searchSummary.textContent = "题目、作者、原文、译文与标签均可搜索";
+    elements.searchEmpty.textContent = "输入几个字，循着诗句与古人相逢";
+    elements.searchEmpty.hidden = false;
+    return;
+  }
+
+  elements.searchSummary.textContent = "正在检索两千首诗词…";
+  elements.searchEmpty.textContent = "正在循句寻诗…";
+  elements.searchEmpty.hidden = false;
+
+  try {
+    const records = await loadSearchRecords();
+    if (requestId !== state.searchRequestId) return;
+    const terms = query.split(" ");
+    const matches = records
+      .filter((record) => terms.every((term) => record.text.includes(term)))
+      .map((record) => ({
+        record,
+        poem: state.poemsById.get(record.id),
+      }))
+      .filter((item) => item.poem)
+      .sort(
+        (left, right) =>
+          searchScore(right.poem, right.record, query) -
+            searchScore(left.poem, left.record, query) ||
+          left.poem.ordinal - right.poem.ordinal,
+      );
+
+    const visibleMatches = matches.slice(0, MAX_SEARCH_RESULTS);
+    const fragment = document.createDocumentFragment();
+    visibleMatches.forEach(({ poem, record }, index) => {
+      fragment.append(
+        createPoemListItem(poem, index + 1, {
+          excerpt: record.excerpt,
+          message: `已从搜索打开《${poem.title}》`,
+          onOpen: () => {
+            // 搜索是全库入口；打开结果时重置筛选，确保“下一首”不会落入无关旧条件。
+            state.category = "全部";
+            state.author = "";
+            state.tag = "";
+            elements.searchDialog.close();
+            renderFilters();
+          },
+        }),
+      );
+    });
+
+    elements.searchResults.replaceChildren(fragment);
+    elements.searchResults.hidden = !visibleMatches.length;
+    elements.searchEmpty.hidden = Boolean(visibleMatches.length);
+    elements.searchEmpty.textContent = "没有找到相符的诗词，换个题目、作者或诗句试试";
+    elements.searchSummary.textContent =
+      matches.length > MAX_SEARCH_RESULTS
+        ? `找到 ${matches.length} 首，显示前 ${MAX_SEARCH_RESULTS} 首`
+        : `找到 ${matches.length} 首`;
+  } catch (error) {
+    if (requestId !== state.searchRequestId) return;
+    console.error(error);
+    elements.searchSummary.textContent = "搜索索引暂未能展开";
+    elements.searchEmpty.textContent = "搜索暂不可用，请稍后重试";
+  }
+}
+
+async function openGlobalSearch() {
+  elements.globalSearchInput.value = "";
+  elements.searchSummary.textContent = "正在准备本地全文索引…";
+  elements.searchResults.replaceChildren();
+  elements.searchResults.hidden = true;
+  elements.searchEmpty.textContent = "正在展开两千首诗词…";
+  elements.searchEmpty.hidden = false;
+  elements.searchDialog.showModal();
+  elements.globalSearchInput.focus();
+  try {
+    await loadSearchRecords();
+    if (!elements.searchDialog.open) return;
+    elements.searchSummary.textContent = "题目、作者、原文、译文与标签均可搜索";
+    elements.searchEmpty.textContent = "输入几个字，循着诗句与古人相逢";
+  } catch (error) {
+    console.error(error);
+    elements.searchSummary.textContent = "搜索索引暂未能展开";
+    elements.searchEmpty.textContent = "搜索暂不可用，请稍后重试";
+  }
+}
+
+function authorKey(dynasty, name) {
+  return `${dynasty}:${name}`;
+}
+
+function authorProfileFor(poem) {
+  const profile = state.authors.get(authorKey(poem.dynasty, poem.author));
+  if (profile) return profile;
+
+  const works = state.index.filter(
+    (item) => item.dynasty === poem.dynasty && item.author === poem.author,
+  ).length;
+  return {
+    name: poem.author,
+    dynasty: poem.dynasty,
+    role: poem.category === "宋词" ? "词人" : "诗人",
+    works,
+    biography: `${poem.dynasty}代${poem.category === "宋词" ? "词人" : "诗人"}。“诗意一刻”当前收录其作品 ${works} 首，可从作品本身认识其创作风貌。`,
+    source: "诗库索引整理",
+  };
+}
+
+function openAuthorDialog(poem) {
+  const profile = authorProfileFor(poem);
+  state.activeAuthor = { ...profile, category: poem.category };
+  elements.authorDialogName.textContent = profile.name;
+  elements.authorDialogMeta.textContent =
+    `${profile.dynasty}代 · ${profile.role} · 诗库收录 ${profile.works} 首`;
+  elements.authorDialogBiography.textContent = profile.biography;
+  elements.authorDialogSource.textContent = `资料来源：${profile.source}`;
+  elements.authorWorksCount.textContent = `${profile.works} 首`;
+  elements.authorWorksAction.setAttribute(
+    "aria-label",
+    `赏读${profile.name}的 ${profile.works} 首作品`,
+  );
+  elements.authorDialog.showModal();
+  elements.authorDialogClose.focus();
+}
+
+function showActiveAuthorWorks() {
+  const profile = state.activeAuthor;
+  if (!profile) return;
+
+  // 人物小传与作者筛选各司其职：只有明确点击“赏读其作品”时才改变当前筛选。
+  state.category = profile.category;
+  state.author = profile.name;
+  state.tag = "";
+  elements.authorDialog.close();
+  renderFilters();
+
+  if (state.current && matchesFilters(state.current)) {
+    renderPoem(state.current);
+    updateNotice(`${profile.name} · 共 ${filteredPoems().length} 首`);
+  } else {
+    showRandom(`${profile.name} · 共 ${filteredPoems().length} 首`);
+  }
+}
+
 function translationBadge(meta) {
   const normalized = normalizeTranslationMeta(meta);
   if (normalized.source === "开放语料整理") {
@@ -281,29 +499,14 @@ function createAuthorLine(poem) {
 
   const button = makeElement("button", "author-filter");
   button.type = "button";
-  const selected = state.author === poem.author;
-  button.setAttribute("aria-pressed", String(selected));
-  button.setAttribute(
-    "aria-label",
-    selected ? `清除${poem.author}筛选` : `筛选${poem.author}的作品`,
-  );
-  button.title = selected ? "清除作者筛选" : `只看${poem.author}的作品`;
+  button.setAttribute("aria-label", `查看${poem.author}的人物简介`);
+  button.title = `查看${poem.author}的人物简介`;
   button.append(
     makeElement("span", "", poem.author),
-    makeElement("span", "author-filter-hint", selected ? "已筛选" : "看作品"),
+    makeElement("span", "author-filter-hint", "人物小传"),
   );
   button.lastElementChild.setAttribute("aria-hidden", "true");
-  button.addEventListener("click", () => {
-    state.author = selected ? "" : poem.author;
-    keepTagIfAvailable();
-    renderFilters();
-    if (!selected && matchesFilters(poem)) {
-      updateNotice(`${poem.author} · 共 ${filteredPoems().length} 首`);
-      renderPoem(poem);
-    } else {
-      showRandom(`${state.author || categoryAuthorLabel()[1]} · 共 ${filteredPoems().length} 首`);
-    }
-  });
+  button.addEventListener("click", () => openAuthorDialog(poem));
   line.append(button);
   return line;
 }
@@ -649,6 +852,26 @@ function bindEvents() {
     if (!elements.resultTrigger.disabled) elements.resultTrigger.focus({ preventScroll: true });
   });
 
+  elements.searchTrigger.addEventListener("click", openGlobalSearch);
+  elements.searchDialogClose.addEventListener("click", () => elements.searchDialog.close());
+  elements.globalSearchInput.addEventListener("input", renderGlobalSearch);
+  elements.searchDialog.addEventListener("click", (event) => {
+    if (event.target === elements.searchDialog) elements.searchDialog.close();
+  });
+  elements.searchDialog.addEventListener("close", () => {
+    state.searchRequestId += 1;
+    elements.searchTrigger.focus({ preventScroll: true });
+  });
+
+  elements.authorDialogClose.addEventListener("click", () => elements.authorDialog.close());
+  elements.authorWorksAction.addEventListener("click", showActiveAuthorWorks);
+  elements.authorDialog.addEventListener("click", (event) => {
+    if (event.target === elements.authorDialog) elements.authorDialog.close();
+  });
+  elements.authorDialog.addEventListener("close", () => {
+    elements.poem.querySelector(".author-filter")?.focus({ preventScroll: true });
+  });
+
   elements.nextAction.addEventListener("click", () => showRandom());
   elements.favoriteAction.addEventListener("click", toggleFavorite);
   elements.copyAction.addEventListener("click", copyCurrent);
@@ -665,6 +888,8 @@ function bindEvents() {
     if (event.code === "Space" || event.code === "ArrowRight") {
       event.preventDefault();
       if (!state.busy) showRandom();
+    } else if (event.key.toLowerCase() === "s") {
+      openGlobalSearch();
     } else if (event.key.toLowerCase() === "f") {
       toggleFavorite();
     } else if (event.key.toLowerCase() === "c") {
@@ -676,15 +901,30 @@ function bindEvents() {
 async function initialize() {
   bindEvents();
   try {
-    const [response] = await Promise.all([
+    const [response, authorResponse] = await Promise.all([
       fetch(`data/poems/index.json?v=${DATA_VERSION}`),
+      fetch(`data/authors.json?v=${DATA_VERSION}`),
       loadFavorites(),
     ]);
     if (!response.ok) throw new Error(`诗库索引读取失败：${response.status}`);
-    const data = await response.json();
+    if (!authorResponse.ok) throw new Error(`作者资料读取失败：${authorResponse.status}`);
+    const [data, authorData] = await Promise.all([
+      response.json(),
+      authorResponse.json(),
+    ]);
     if (!Array.isArray(data.poems) || !data.poems.length) throw new Error("诗库索引为空");
+    if (!Array.isArray(authorData.authors) || !authorData.authors.length) {
+      throw new Error("作者资料为空");
+    }
 
     state.index = data.poems.map(normalizeMeta);
+    state.poemsById = new Map(state.index.map((poem) => [poem.id, poem]));
+    state.authors = new Map(
+      authorData.authors.map((author) => [
+        authorKey(author.dynasty, author.name),
+        author,
+      ]),
+    );
     state.favorites = new Set(
       [...state.favorites].filter((id) => state.index.some((poem) => poem.id === id)),
     );

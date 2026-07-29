@@ -74,6 +74,40 @@
   transform: translateX(2px);
 }
 
+.search-trigger {
+  min-width: 76px;
+  min-height: 36px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 999px;
+  color: var(--cinnabar-dark);
+  background: #9f3f320b;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  font: 600 12px/1 var(--sans);
+  letter-spacing: .08em;
+  transition: color .18s, background .18s, box-shadow .18s;
+}
+
+.search-trigger:hover,
+.search-trigger:focus-visible {
+  color: var(--paper-light);
+  background: var(--cinnabar);
+  box-shadow: 0 4px 14px #68352c24;
+}
+
+.search-trigger:disabled {
+  cursor: default;
+  opacity: .5;
+}
+
+.search-trigger-icon {
+  font: 400 18px/1 var(--serif);
+}
+
 .poem-list-dialog {
   width: min(820px, calc(100vw - 48px));
   height: min(760px, calc(100dvh - 64px));
@@ -273,6 +307,17 @@
   text-overflow: ellipsis;
 }
 
+.poem-list-item-excerpt {
+  display: block;
+  margin-top: 6px;
+  overflow: hidden;
+  color: #5d625d;
+  font: 400 12px/1.5 var(--serif);
+  letter-spacing: .04em;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
 .poem-list-item-mark {
   color: var(--cinnabar);
   font-size: 16px;
@@ -283,6 +328,155 @@
   color: var(--ink-soft);
   font: 400 15px/1.8 var(--serif);
   letter-spacing: .12em;
+}
+
+.author-filter {
+  cursor: pointer;
+}
+
+.author-dialog {
+  width: min(680px, calc(100vw - 48px));
+  max-width: none;
+  max-height: min(720px, calc(100dvh - 64px));
+  margin: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  color: var(--ink);
+  background: transparent;
+  overflow: hidden;
+  box-shadow: 0 30px 90px #1d1b1770;
+}
+
+.author-dialog::backdrop {
+  background: #29272075;
+  backdrop-filter: blur(5px);
+}
+
+.author-dialog-shell {
+  min-height: min(520px, calc(100dvh - 64px));
+  max-height: min(720px, calc(100dvh - 64px));
+  display: flex;
+  flex-direction: column;
+  background:
+    radial-gradient(circle at 12% 18%, #70685511 0 1px, transparent 1.5px),
+    radial-gradient(circle at 86% 62%, #7068550d 0 1px, transparent 1.5px),
+    linear-gradient(112deg, #ffffff61, transparent 24%, #bbad8e0e 72%, transparent),
+    var(--paper);
+  background-size: 23px 21px, 31px 29px, auto, auto;
+  border: 1px solid #80745d66;
+  box-shadow: inset 0 0 70px #75644612;
+}
+
+.author-dialog-header {
+  flex: none;
+  min-height: 142px;
+  padding: 32px 38px 25px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.author-dialog-kicker {
+  margin-bottom: 9px;
+  color: var(--cinnabar);
+  font: 600 11px/1 var(--sans);
+  letter-spacing: .3em;
+}
+
+.author-dialog-header h2 {
+  margin: 0;
+  font: 500 38px/1.2 var(--kai);
+  letter-spacing: .14em;
+}
+
+.author-dialog-header p {
+  margin: 10px 0 0;
+  color: var(--ink-soft);
+  font: 400 12px/1.5 var(--sans);
+  letter-spacing: .08em;
+}
+
+.author-dialog-close {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  color: var(--ink-soft);
+  background: #ffffff4f;
+  cursor: pointer;
+  font: 300 28px/1 var(--sans);
+  transition: color .18s, border-color .18s, transform .18s;
+}
+
+.author-dialog-close:hover {
+  color: var(--cinnabar);
+  border-color: var(--cinnabar);
+  transform: rotate(6deg);
+}
+
+.author-dialog-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 30px 38px 22px;
+  overflow: hidden auto;
+  overscroll-behavior: contain;
+  scrollbar-color: #5f665f7a transparent;
+  scrollbar-width: thin;
+}
+
+.author-dialog-biography {
+  margin: 0;
+  color: var(--ink);
+  font: 400 17px/2.05 var(--serif);
+  letter-spacing: .065em;
+  text-align: justify;
+}
+
+.author-dialog-source {
+  margin: 24px 0 0;
+  padding-top: 16px;
+  border-top: 1px dashed var(--line);
+  color: var(--ink-soft);
+  font: 400 11px/1.65 var(--sans);
+  letter-spacing: .06em;
+}
+
+.author-dialog-actions {
+  flex: none;
+  padding: 18px 38px 28px;
+}
+
+.author-works-action {
+  width: 100%;
+  min-height: 56px;
+  padding: 0 22px;
+  border: 1px solid var(--cinnabar);
+  color: var(--paper-light);
+  background: var(--cinnabar);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font: 600 14px/1 var(--sans);
+  letter-spacing: .12em;
+  transition: background .18s, transform .18s, box-shadow .18s;
+}
+
+.author-works-action:hover,
+.author-works-action:focus-visible {
+  background: var(--cinnabar-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 22px #68352c24;
+}
+
+.author-works-action span:last-child {
+  color: #fffbd6cc;
+  font-size: 11px;
+  letter-spacing: .06em;
 }
 
 /* 商店截图和常见笔记本屏幕多为 1280×800；压缩纵向留白，避免侧栏说明挤到操作区。 */
@@ -329,6 +523,13 @@
 }
 
 @media (width <= 650px) {
+  .search-trigger {
+    flex: 0 0 62px;
+    min-width: 0;
+    min-height: 38px;
+    padding-inline: 8px;
+  }
+
   .filter-result {
     min-height: 42px;
     justify-content: flex-start;
@@ -367,5 +568,34 @@
 
   .poem-list-item {
     min-height: 86px;
+  }
+
+  .author-dialog {
+    width: 100vw;
+    max-height: 100dvh;
+    margin: 0;
+    border-radius: 0;
+  }
+
+  .author-dialog-shell {
+    min-height: 100dvh;
+    max-height: 100dvh;
+  }
+
+  .author-dialog-header {
+    min-height: 128px;
+    padding: max(26px, env(safe-area-inset-top)) 22px 21px;
+  }
+
+  .author-dialog-header h2 {
+    font-size: 34px;
+  }
+
+  .author-dialog-body {
+    padding: 26px 22px 18px;
+  }
+
+  .author-dialog-actions {
+    padding: 16px 22px max(22px, env(safe-area-inset-bottom));
   }
 }

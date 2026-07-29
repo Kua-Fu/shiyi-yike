@@ -21,6 +21,10 @@
               <span class="brand-tagline">唐诗一千 · 宋词一千</span>
             </div>
             <nav class="filters" aria-label="诗词分类">
+              <button id="search-trigger" class="search-trigger" type="button" aria-haspopup="dialog" aria-controls="search-dialog" disabled>
+                <span class="search-trigger-icon" aria-hidden="true">⌕</span>
+                <span>搜索</span>
+              </button>
               <button class="filter" type="button" data-category="唐诗" aria-pressed="false" disabled>唐诗</button>
               <button class="filter" type="button" data-category="宋词" aria-pressed="false" disabled>宋词</button>
               <button class="filter" type="button" data-category="全部" aria-pressed="true" disabled>全部</button>
@@ -101,7 +105,7 @@
           <footer class="footer">
             <span class="footer-flourish" aria-hidden="true"></span>
             <span>两千首完整诗词与白话译文，每一次点击，都是与古人的不期而遇</span>
-            <span class="footer-shortcuts" aria-label="快捷键：空格键换一首，F 收藏，C 复制">空格换一首 · F 收藏 · C 复制</span>
+            <span class="footer-shortcuts" aria-label="快捷键：S 搜索，空格键换一首，F 收藏，C 复制">S 搜索 · 空格换一首 · F 收藏 · C 复制</span>
             <span class="footer-flourish" aria-hidden="true"></span>
           </footer>
         </div>
@@ -125,6 +129,48 @@
         <div id="poem-list" class="poem-list" aria-label="当前筛选下的诗词"></div>
         <p id="poem-list-empty" class="poem-list-empty" hidden>没有找到相符的诗词</p>
       </section>
+    </dialog>
+
+    <dialog id="search-dialog" class="poem-list-dialog search-dialog" aria-labelledby="search-dialog-title">
+      <section class="poem-list-shell">
+        <header class="poem-list-header">
+          <div>
+            <div class="poem-list-kicker">全库寻诗</div>
+            <h2 id="search-dialog-title">搜索诗词</h2>
+            <p id="search-summary" aria-live="polite">题目、作者、原文、译文与标签均可搜索</p>
+          </div>
+          <button id="search-dialog-close" class="poem-list-close" type="button" aria-label="关闭诗词搜索">×</button>
+        </header>
+        <label class="poem-list-search search-field">
+          <span class="poem-list-search-icon" aria-hidden="true">⌕</span>
+          <input id="global-search-input" type="search" placeholder="输入题目、作者或一句诗" autocomplete="off">
+        </label>
+        <div id="search-results" class="poem-list" aria-label="诗词搜索结果" hidden></div>
+        <p id="search-empty" class="poem-list-empty" role="status">输入几个字，循着诗句与古人相逢</p>
+      </section>
+    </dialog>
+
+    <dialog id="author-dialog" class="author-dialog" aria-labelledby="author-dialog-name">
+      <article class="author-dialog-shell">
+        <header class="author-dialog-header">
+          <div>
+            <div class="author-dialog-kicker">人物小传</div>
+            <h2 id="author-dialog-name">诗人 / 词人</h2>
+            <p id="author-dialog-meta">朝代 · 身份 · 收录作品</p>
+          </div>
+          <button id="author-dialog-close" class="author-dialog-close" type="button" aria-label="关闭人物简介">×</button>
+        </header>
+        <div class="author-dialog-body">
+          <p id="author-dialog-biography" class="author-dialog-biography"></p>
+          <p id="author-dialog-source" class="author-dialog-source"></p>
+        </div>
+        <footer class="author-dialog-actions">
+          <button id="author-works-action" class="author-works-action" type="button">
+            <span>赏读其作品</span>
+            <span id="author-works-count" aria-hidden="true">0 首</span>
+          </button>
+        </footer>
+      </article>
     </dialog>
 
     <script type="module" src="app.js"></script>

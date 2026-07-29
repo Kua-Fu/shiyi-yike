@@ -1,9 +1,14 @@
 {
   "name": "shiyi-yike-chrome-extension",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "private": true,
   "description": "诗意一刻 Chrome 新标签页扩展",
   "scripts": {
+    "build:authors": "node scripts/build-authors.mjs",
+    "build:search": "node scripts/build-search-index.mjs",
     "test": "node tests/validate.mjs"
+  },
+  "devDependencies": {
+    "opencc-js": "^1.4.1"
   }
 }
