@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light">
+    <meta name="theme-color" content="#d5d0c4">
+    <title>诗意一刻</title>
+    <link rel="icon" type="image/png" href="assets/icons/icon-32.png">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="extension.css">
+  </head>
+  <body>
+    <main class="stage">
+      <section class="scroll" aria-label="诗意一刻古诗词赏读">
+        <div class="paper">
+          <header class="masthead">
+            <div class="brand">
+              <span class="brand-mark" aria-hidden="true">诗</span>
+              <span class="brand-title">诗意一刻</span>
+              <span class="brand-tagline">唐诗一千 · 宋词一千</span>
+            </div>
+            <nav class="filters" aria-label="诗词分类">
+              <button class="filter" type="button" data-category="唐诗" aria-pressed="false" disabled>唐诗</button>
+              <button class="filter" type="button" data-category="宋词" aria-pressed="false" disabled>宋词</button>
+              <button class="filter" type="button" data-category="全部" aria-pressed="true" disabled>全部</button>
+              <button class="filter filter-favorites" type="button" data-category="收藏" aria-pressed="false" disabled>
+                <span>收藏</span>
+                <span id="favorite-nav-count" class="favorite-nav-count" aria-label="已收藏 0 首">0</span>
+              </button>
+            </nav>
+          </header>
+
+          <section class="filter-panel" aria-label="按作者和标签筛选">
+            <label class="select-field">
+              <span id="author-label">诗人 / 词人</span>
+              <select id="author-select" aria-labelledby="author-label" disabled>
+                <option value="">全部作者</option>
+              </select>
+            </label>
+            <label class="select-field">
+              <span id="tag-label">标签</span>
+              <select id="tag-select" aria-labelledby="tag-label" disabled>
+                <option value="">全部标签</option>
+              </select>
+            </label>
+            <button id="result-trigger" class="filter-result" type="button" aria-haspopup="dialog" aria-controls="poem-list-dialog" disabled>
+              <strong id="result-count">0</strong>
+              <span>首可赏</span>
+              <span class="filter-result-arrow" aria-hidden="true">›</span>
+            </button>
+            <button id="clear-filter" class="clear-filter" type="button" hidden>清除筛选</button>
+          </section>
+
+          <div class="content">
+            <aside class="folio" aria-hidden="true">
+              <span id="folio-no" class="folio-no">卷之0001 · 随机诗笺</span>
+              <span class="folio-line"></span>
+              <span class="season">岁月清赏</span>
+            </aside>
+
+            <div id="reading-scroll" class="reading-scroll" tabindex="0" aria-busy="true">
+              <article id="poem" class="poem poem-loading">
+                <div class="eyebrow">此刻遇见</div>
+                <h1 class="poem-title">静候诗来</h1>
+                <div class="author-line"><span>古今</span><span aria-hidden="true">·</span><span>无界</span></div>
+                <section class="original" aria-label="诗词原文">
+                  <div class="section-kicker">原文</div>
+                  <div class="verses"><p class="verse">正在展开两千首诗词……</p></div>
+                </section>
+              </article>
+            </div>
+
+            <aside class="side-panel">
+              <div class="wash" aria-hidden="true"></div>
+              <div id="big-character" class="big-character" aria-hidden="true">诗</div>
+              <div id="context" class="context">
+                <strong>唐诗宋词 · 随机漫游</strong>
+                每一个新标签页<br>都是一次不期而遇
+              </div>
+              <div class="actions">
+                <div class="primary-actions">
+                  <button id="favorite-action" class="favorite-action" type="button" aria-pressed="false" disabled>
+                    <span id="favorite-icon" class="favorite-icon" aria-hidden="true">♡</span>
+                    <span id="favorite-label">收藏此篇</span>
+                  </button>
+                  <button id="next-action" class="primary next-action" type="button" aria-label="在当前筛选中随机查看下一首" disabled>
+                    <span id="next-label">下一首</span>
+                    <span class="button-arrow" aria-hidden="true">→</span>
+                  </button>
+                </div>
+                <button id="copy-action" class="copy-action" type="button" disabled>
+                  <span class="copy-label-full">复制全文</span>
+                  <span class="copy-label-short">复制</span>
+                </button>
+                <div id="notice" class="notice" role="status" aria-live="polite">正在展开两千首诗词…</div>
+              </div>
+            </aside>
+          </div>
+
+          <footer class="footer">
+            <span class="footer-flourish" aria-hidden="true"></span>
+            <span>两千首完整诗词与白话译文，每一次点击，都是与古人的不期而遇</span>
+            <span class="footer-shortcuts" aria-label="快捷键：空格键换一首，F 收藏，C 复制">空格换一首 · F 收藏 · C 复制</span>
+            <span class="footer-flourish" aria-hidden="true"></span>
+          </footer>
+        </div>
+      </section>
+    </main>
+
+    <dialog id="poem-list-dialog" class="poem-list-dialog" aria-labelledby="poem-list-title">
+      <section class="poem-list-shell">
+        <header class="poem-list-header">
+          <div>
+            <div class="poem-list-kicker">当前筛选</div>
+            <h2 id="poem-list-title">可赏诗词</h2>
+            <p id="poem-list-summary" aria-live="polite">共 0 首</p>
+          </div>
+          <button id="poem-list-close" class="poem-list-close" type="button" aria-label="关闭诗词列表">×</button>
+        </header>
+        <label class="poem-list-search">
+          <span class="poem-list-search-icon" aria-hidden="true">⌕</span>
+          <input id="poem-list-search" type="search" placeholder="搜索题目、作者或标签" autocomplete="off">
+        </label>
+        <div id="poem-list" class="poem-list" aria-label="当前筛选下的诗词"></div>
+        <p id="poem-list-empty" class="poem-list-empty" hidden>没有找到相符的诗词</p>
+      </section>
+    </dialog>
+
+    <script type="module" src="app.js"></script>
+  </body>
+</html>

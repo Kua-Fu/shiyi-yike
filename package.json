@@ -1,0 +1,9 @@
+{
+  "name": "shiyi-yike-chrome-extension",
+  "version": "1.0.0",
+  "private": true,
+  "description": "诗意一刻 Chrome 新标签页扩展",
+  "scripts": {
+    "test": "node tests/validate.mjs"
+  }
+}
