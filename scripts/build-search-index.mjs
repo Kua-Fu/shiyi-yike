@@ -36,6 +36,7 @@ const records = index.poems.map((poem) => {
       poem.title,
       poem.author,
       poem.dynasty,
+      poem.period,
       poem.category,
       poem.form,
       ...poem.tags,
@@ -56,4 +57,4 @@ await fs.writeFile(
   })}\n`,
 );
 
-console.log(`✓ 已生成 ${records.length} 首诗词的本地全文搜索索引`);
+console.log(`✓ 已生成 ${records.length} 篇诗词的本地全文搜索索引`);

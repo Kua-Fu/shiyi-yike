@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "诗意一刻",
-  "version": "1.2.0",
-  "description": "在唐诗宋词之间随机漫游，让每一个新标签页都成为与古人的不期而遇。",
+  "version": "1.12.0",
+  "description": "点击工具栏图标，在先秦至清代的古典诗词之间随机漫游，不替换浏览器的新标签页。",
   "icons": {
     "16": "assets/icons/icon-16.png",
     "32": "assets/icons/icon-32.png",
@@ -19,8 +19,13 @@
   "background": {
     "service_worker": "background.js"
   },
-  "chrome_url_overrides": {
-    "newtab": "newtab.html"
+  "commands": {
+    "_execute_action": {
+      "suggested_key": {
+        "default": "Alt+Shift+P",
+        "mac": "Command+Shift+P"
+      }
+    }
   },
   "permissions": [
     "storage"

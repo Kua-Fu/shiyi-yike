@@ -1,0 +1,61 @@
+{
+  "auditDate": "2026-07-30",
+  "releaseVersion": "1.12.0",
+  "disclaimer": "Engineering provenance record; not legal advice. Editorial review status is not copyright clearance.",
+  "reviewCounts": {
+    "reviewed": 938,
+    "pendingReview": 2834,
+    "aiDraft": 1062,
+    "total": 4834
+  },
+  "releasePolicy": {
+    "defaultReviewMode": "reviewed",
+    "fullLibraryRequiresExplicitOptIn": true,
+    "copyIncludesSourceAndReviewStatus": true
+  },
+  "sources": [
+    {
+      "id": "chinese-poetry",
+      "url": "https://github.com/chinese-poetry/chinese-poetry",
+      "declaredLicense": "MIT",
+      "fixedCommit": "b8594f81a89752241442f2ce267d6f66f96704ee",
+      "distributionStatus": "included-with-attribution"
+    },
+    {
+      "id": "zh-wikipedia",
+      "url": "https://zh.wikipedia.org/",
+      "declaredLicense": "CC BY-SA 4.0",
+      "attribution": "中文维基百科贡献者",
+      "distributionStatus": "included-with-versioned-attribution"
+    },
+    {
+      "id": "papersnake-gushiwen",
+      "url": "https://huggingface.co/datasets/Papersnake/gushiwen",
+      "declaredLicense": "CC0-1.0",
+      "records": 1933,
+      "upstreamRightsVerified": false,
+      "distributionStatus": "included-with-provenance-warning"
+    },
+    {
+      "id": "yht050511-gushiwen",
+      "url": "https://github.com/yht050511/gushiwen",
+      "declaredLicense": "MIT",
+      "fixedCommit": "409df701b3f91a41c87e5979b092c8c3c42c2123",
+      "records": 2769,
+      "upstreamRightsVerified": false,
+      "distributionStatus": "explicit-opt-in-pending-external-clearance"
+    },
+    {
+      "id": "project-curated-and-ai-assisted",
+      "records": 132,
+      "distributionStatus": "pending-editorial-review"
+    },
+    {
+      "id": "opencc-js",
+      "url": "https://github.com/nk2028/opencc-js",
+      "declaredLicense": "MIT AND Apache-2.0",
+      "version": "1.4.1",
+      "distributionStatus": "included-with-license-files"
+    }
+  ]
+}

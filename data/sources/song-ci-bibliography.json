@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "bibliography": {
+    "title": "全宋词",
+    "compiler": "唐圭璋",
+    "contributors": [
+      "王仲闻参订",
+      "孔凡礼补辑"
+    ],
+    "publisher": "中华书局",
+    "edition": "1999年增订版，全五册",
+    "isbn": "9787101017144",
+    "referenceUrl": "https://book.douban.com/subject/1045323/"
+  },
+  "textCorpus": {
+    "name": "chinese-poetry · 全宋词",
+    "repository": "https://github.com/chinese-poetry/chinese-poetry",
+    "commit": "b8594f81a89752241442f2ce267d6f66f96704ee",
+    "license": "MIT",
+    "scope": "新增宋词的作者、词牌与正文交叉核对"
+  },
+  "translationCorpus": {
+    "name": "yht050511/gushiwen",
+    "repository": "https://github.com/yht050511/gushiwen",
+    "commit": "409df701b3f91a41c87e5979b092c8c3c42c2123",
+    "license": "MIT",
+    "scope": "新增宋词的白话译文"
+  },
+  "selection": {
+    "count": 200,
+    "requiresCorpusBodyMatch": true,
+    "requiresTranslation": true,
+    "deduplicatedAgainstLocalLibrary": true,
+    "translationReviewStatus": "pending-review"
+  }
+}

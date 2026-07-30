@@ -1,0 +1,214 @@
+{
+  "schemaVersion": 1,
+  "bibliography": {
+    "title": "宋诗选注",
+    "selectorAnnotator": "钱锺书",
+    "publisher": "人民文学出版社",
+    "firstPublished": 1958,
+    "reportedPoets": 81,
+    "reportedPoems": 289,
+    "sourcePage": "https://zh.wikipedia.org/wiki/%E5%AE%8B%E8%A9%A9%E9%81%B8%E6%B3%A8",
+    "sourceRevisionId": 90739261,
+    "sourcePermalink": "https://zh.wikipedia.org/w/index.php?title=%E5%AE%8B%E8%A9%A9%E9%81%B8%E6%B3%A8&oldid=90739261",
+    "retrievedAt": "2026-07-30",
+    "sourceLicense": "CC BY-SA 4.0",
+    "sourceLicenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "attribution": "中文维基百科贡献者"
+  },
+  "usage": {
+    "mode": "bibliographic-and-named-selection-reference",
+    "scope": "仅以来源页明确提及的入选作品作为本轮补充边界",
+    "doesNotCopy": [
+      "序言",
+      "诗人短论",
+      "现代注释",
+      "现代译文",
+      "评语",
+      "版式"
+    ],
+    "explicitExclusions": [
+      {
+        "author": "文天祥",
+        "title": "正气歌"
+      },
+      {
+        "author": "文天祥",
+        "title": "过零丁洋"
+      },
+      {
+        "author": "朱熹",
+        "title": "观书有感"
+      },
+      {
+        "author": "佚名",
+        "title": "吴歌"
+      }
+    ]
+  },
+  "textSources": [
+    {
+      "name": "yht050511/gushiwen",
+      "repository": "https://github.com/yht050511/gushiwen",
+      "commit": "409df701b3f91a41c87e5979b092c8c3c42c2123",
+      "license": "MIT",
+      "scope": "《田家语》《汝坟贫女》公版原文核对"
+    },
+    {
+      "name": "维基文库《翠微南征录（四部丛刊本）》卷十",
+      "url": "https://zh.wikisource.org/zh-hans/%E7%BF%A0%E5%BE%AE%E5%8D%97%E5%BE%81%E9%8C%84_%28%E5%9B%9B%E9%83%A8%E5%8F%A2%E5%88%8A%E6%9C%AC%29/%E5%8D%B7%E4%B9%8B%E5%8D%81",
+      "license": "CC BY-SA 4.0",
+      "scope": "《田家十绝·其十》公版原文核对"
+    },
+    {
+      "name": "《萧冰崖诗集拾遗》公版原文公开转录",
+      "url": "https://m.pinshiwen.com/gsdq/jdgs/2019051341342.html",
+      "scope": "仅交叉核对《第四桥》公版原文，不复用页面的现代赏析或译文"
+    }
+  ],
+  "selection": {
+    "added": 4,
+    "alreadyPresent": 1,
+    "translationReviewStatus": "pending-review",
+    "works": [
+      {
+        "id": "song-poetry-selection-0001",
+        "author": "梅尧臣",
+        "title": "田家语",
+        "status": "added",
+        "sourceRecordId": 60224,
+        "lines": [
+          "谁道田家乐？春税秋未足！",
+          "里胥扣我门，日夕苦煎促。",
+          "盛夏流潦多，白水高于屋。",
+          "水既害我菽，蝗又食我粟。",
+          "前月诏书来，生齿复版录；",
+          "三丁藉一壮，恶使操弓韣。",
+          "州符今又严，老吏持鞭朴。",
+          "搜索稚与艾，惟存跛无目。",
+          "田闾敢怨嗟，父子各悲哭。",
+          "南亩焉可事？买箭卖牛犊。",
+          "愁气变久雨，铛缶空无粥；",
+          "盲跛不能耕，死亡在迟速！",
+          "我闻诚所惭，徒尔叨君禄；",
+          "却咏《归去来》，刈薪向深谷。"
+        ],
+        "translation": [
+          "谁说种田人过得快活？春天欠下的赋税，到了秋天还没有交足。",
+          "乡吏敲打我家大门，从早到晚苦苦催逼。",
+          "盛夏积水成灾，白茫茫的洪水高过了房屋。",
+          "大水已经毁掉豆苗，蝗虫又吃光了谷物。",
+          "上个月诏书传来，重新逐户登记人口；",
+          "每三名男丁抽取一名壮丁，强迫他们带弓入伍。",
+          "州府的公文如今更加严厉，老吏拿着鞭杖催人。",
+          "连幼童和老人也被搜走，只剩下跛脚和失明的人。",
+          "乡民哪里敢怨叹，父子只能各自悲哭。",
+          "田里的活还怎么做？为了置办弓箭，只得卖掉牛犊。",
+          "满腔愁苦仿佛化成连日阴雨，锅罐空空，连粥也没有。",
+          "盲者和跛者不能耕种，死亡不过是早晚的事。",
+          "我听到这些话实在惭愧，自己只是白白领受朝廷俸禄；",
+          "不如吟着《归去来兮辞》辞官而去，到深谷中砍柴度日。"
+        ],
+        "form": "宋诗 · 五言古诗",
+        "tags": [
+          "宋诗",
+          "宋诗选注",
+          "民生",
+          "田园"
+        ],
+        "textSource": "yht050511/gushiwen · MIT 开放数据"
+      },
+      {
+        "id": "song-poetry-selection-0002",
+        "author": "梅尧臣",
+        "title": "汝坟贫女",
+        "status": "added",
+        "sourceRecordId": 25018,
+        "lines": [
+          "汝坟贫家女，行哭音凄怆。",
+          "自言有老父，孤独无丁壮。",
+          "郡吏来何暴，县官不敢抗。",
+          "督遣勿稽留，龙钟去携杖。",
+          "勤勤嘱四邻，幸愿相依傍。",
+          "适闻闾里归，问讯疑犹强。",
+          "果然寒雨中，僵死壤河上。",
+          "弱质无以托，横尸无以葬。",
+          "生女不如男，虽存何所当！",
+          "拊膺呼苍天，生死将奈向？"
+        ],
+        "translation": [
+          "汝水堤边贫苦人家的女儿，一路哭泣，声音凄凉悲伤。",
+          "她说家中只有年老的父亲，孤苦无依，没有成年男子。",
+          "郡里的差役来得何等凶暴，县官也不敢违抗。",
+          "他们催逼出发，不许耽搁；老父行动迟缓，只得拄杖上路。",
+          "临行前再三托付四邻，希望一路能得到照应。",
+          "刚听说同乡有人回来，她想询问消息，却又疑惧父亲只是勉强支撑。",
+          "果然，父亲在冰冷的雨中僵死在壤河岸边。",
+          "柔弱的女儿从此无所依靠，父亲横陈的遗体也无力安葬。",
+          "生作女儿仿佛不如男子，我即使活着又能担当什么！",
+          "她捶着胸口呼喊苍天，今后无论生死又该怎么办？"
+        ],
+        "form": "宋诗 · 五言古诗",
+        "tags": [
+          "宋诗",
+          "宋诗选注",
+          "民生",
+          "家国"
+        ],
+        "textSource": "yht050511/gushiwen · MIT 开放数据"
+      },
+      {
+        "id": "song-poetry-selection-0003",
+        "author": "华岳",
+        "title": "田家十绝·其十",
+        "selectionTitle": "田家",
+        "status": "added",
+        "lines": [
+          "拂晓呼儿去采樵，祝妻早办午炊烧。",
+          "日斜枵腹归家看，尚有生枝炙未焦。"
+        ],
+        "translation": [
+          "天刚亮，他便叫孩子去砍柴，又叮嘱妻子早些准备午饭。",
+          "直到日头西斜才饿着肚子回家，却见砍回的柴枝还湿，火也未能烧旺。"
+        ],
+        "form": "宋诗 · 七言绝句",
+        "tags": [
+          "宋诗",
+          "宋诗选注",
+          "田园",
+          "民生"
+        ],
+        "textSource": "维基文库《翠微南征录（四部丛刊本）》卷十",
+        "textNormalization": "将原刻异体字“㷌”规范为简体字“归”"
+      },
+      {
+        "id": "song-poetry-selection-0004",
+        "author": "萧立之",
+        "title": "第四桥",
+        "status": "added",
+        "lines": [
+          "自折孤樽擘蟹斟，荻花洲渚月平林。",
+          "一江秋色无人管，柔橹风前语夜深。"
+        ],
+        "translation": [
+          "我独自倾壶斟酒，掰开螃蟹下酒；荻花铺满洲渚，月光平照林梢。",
+          "满江秋色仿佛无人照管，夜风送来轻柔的橹声，像在深夜低语。"
+        ],
+        "form": "宋诗 · 七言绝句",
+        "tags": [
+          "宋诗",
+          "宋诗选注",
+          "秋意",
+          "月夜"
+        ],
+        "textSource": "《萧冰崖诗集拾遗》公版原文公开转录",
+        "textualNote": "保留“自折孤樽”的传本用字；来源页同时记录《宋诗选注》曾改作“自把孤樽”"
+      },
+      {
+        "author": "王安石",
+        "title": "夜直",
+        "status": "already-present",
+        "localId": "additional-song-002113"
+      }
+    ]
+  }
+}
