@@ -23,6 +23,7 @@ const runtimeEntries = [
   "newtab.html",
   "app.js",
   "reading-insights.js",
+  "learning-progress.js",
   "styles.css",
   "extension.css",
   "LICENSE",
@@ -31,11 +32,13 @@ const runtimeEntries = [
   "THIRD_PARTY_NOTICES.md",
   "CONTENT_LICENSE_AUDIT.md",
   "assets/icon.svg",
+  "assets/fonts",
   "assets/icons",
   "vendor/opencc-js/full.js",
   "vendor/opencc-js/LICENSE",
   "vendor/opencc-js/THIRD_PARTY_LICENSES.md",
   "data/authors.json",
+  "data/deep-readings.json",
   "data/poems/index.json",
   "data/poems/search.json",
   "data/poems/chunks",
@@ -93,12 +96,25 @@ try {
     "newtab.html",
     "app.js",
     "reading-insights.js",
+    "learning-progress.js",
     "CONTENT_LICENSE_AUDIT.md",
+    "assets/fonts/ZhiMangXing-Regular.ttf",
+    "assets/fonts/ZhiMangXing-OFL.txt",
     "data/poems/index.json",
+    "data/deep-readings.json",
     "data/sources/content-license-audit.json",
   ]) {
     if (!entries.includes(requiredEntry)) {
       throw new Error(`扩展包缺少必需文件：${requiredEntry}`);
+    }
+  }
+  // 草书选项已从产品中下线；显式阻断旧字体回流，避免发布包体积悄然增加约 2.6 MiB。
+  for (const removedEntry of [
+    "assets/fonts/LiuJianMaoCao-Regular.ttf",
+    "assets/fonts/LiuJianMaoCao-OFL.txt",
+  ]) {
+    if (entries.includes(removedEntry)) {
+      throw new Error(`扩展包仍包含已移除资源：${removedEntry}`);
     }
   }
   if (entries.some((entry) => /^(?:node_modules|scripts|tests)\//.test(entry))) {

@@ -18,22 +18,18 @@
             <div class="brand">
               <span class="brand-mark" aria-hidden="true">诗</span>
               <span class="brand-title">诗意一刻</span>
-              <span class="brand-tagline">先秦至清 · 一卷尽览</span>
+              <span class="brand-tagline">每日一诗 · 逐句精读</span>
             </div>
-            <nav class="filters" aria-label="今日诗签、搜索、简繁切换、换肤与收藏">
+            <nav class="filters" aria-label="今日诗签、搜索、外观设置与收藏">
               <button id="daily-trigger" class="daily-trigger" type="button" aria-pressed="false" aria-label="今日诗签正在准备" disabled>
-                <span class="daily-trigger-mark" aria-hidden="true">今</span>
-                <span class="daily-trigger-name">今日</span>
+                <span id="daily-trigger-mark" class="daily-trigger-mark" aria-hidden="true">今</span>
+                <span id="daily-trigger-name" class="daily-trigger-name">今日</span>
               </button>
               <button id="search-trigger" class="search-trigger" type="button" aria-haspopup="dialog" aria-controls="search-dialog" disabled>
                 <span class="search-trigger-icon" aria-hidden="true">⌕</span>
                 <span class="search-trigger-name">搜索</span>
               </button>
-              <button id="script-trigger" class="script-trigger" type="button" aria-pressed="false" aria-label="切换为繁体中文">
-                <span id="script-trigger-mark" class="script-trigger-mark" aria-hidden="true">繁</span>
-                <span id="script-trigger-name">繁体</span>
-              </button>
-              <button id="theme-trigger" class="theme-trigger" type="button" aria-haspopup="dialog" aria-controls="theme-dialog" aria-label="更换皮肤，当前为宣纸雅韵">
+              <button id="theme-trigger" class="theme-trigger" type="button" aria-haspopup="dialog" aria-controls="theme-dialog" aria-label="打开外观设置，当前皮肤为宣纸雅韵，字体为默认雅韵，文字为简体中文">
                 <span class="theme-trigger-swatch" aria-hidden="true"></span>
                 <span id="theme-trigger-name">宣纸</span>
               </button>
@@ -44,39 +40,43 @@
             </nav>
           </header>
 
-          <section class="filter-panel" aria-label="选择诗库范围，并按朝代、作者和标签筛选">
-            <label class="select-field select-field-scope">
-              <span id="review-mode-label">范围</span>
-              <select id="review-mode-select" aria-labelledby="review-mode-label" disabled>
-                <option value="reviewed" selected>已校精选（938）</option>
-                <option value="all">全库广览（4834）</option>
-              </select>
-            </label>
-            <label class="select-field select-field-period">
-              <span id="period-label">朝代</span>
-              <select id="period-select" aria-labelledby="period-label" disabled>
-                <option value="">全部朝代</option>
-              </select>
-            </label>
-            <label class="select-field">
-              <span id="author-label">作者</span>
-              <select id="author-select" aria-labelledby="author-label" disabled>
-                <option value="">全部作者</option>
-              </select>
-            </label>
-            <label class="select-field">
-              <span id="tag-label">标签</span>
-              <select id="tag-select" aria-labelledby="tag-label" disabled>
-                <option value="">全部标签</option>
-              </select>
-            </label>
-            <button id="result-trigger" class="filter-result" type="button" aria-haspopup="dialog" aria-controls="poem-list-dialog" disabled>
-              <strong id="result-count">0</strong>
-              <span id="result-unit">篇可赏</span>
-              <span class="filter-result-arrow" aria-hidden="true">›</span>
-            </button>
-            <button id="clear-filter" class="clear-filter" type="button" hidden>清除筛选</button>
-          </section>
+          <details id="library-panel" class="library-panel">
+            <summary id="library-summary">诗库 · 深度精读 50 篇</summary>
+            <section class="filter-panel" aria-label="选择诗库范围，并按朝代、作者和标签筛选">
+              <label class="select-field select-field-scope">
+                <span id="review-mode-label">范围</span>
+                <select id="review-mode-select" aria-labelledby="review-mode-label" disabled>
+                  <option value="deep" selected>深度精读（50）</option>
+                  <option value="reviewed">已校精选（938）</option>
+                  <option value="all">全库广览（5334）</option>
+                </select>
+              </label>
+              <label class="select-field select-field-period">
+                <span id="period-label">朝代</span>
+                <select id="period-select" aria-labelledby="period-label" disabled>
+                  <option value="">全部朝代</option>
+                </select>
+              </label>
+              <label class="select-field">
+                <span id="author-label">作者</span>
+                <select id="author-select" aria-labelledby="author-label" disabled>
+                  <option value="">全部作者</option>
+                </select>
+              </label>
+              <label class="select-field">
+                <span id="tag-label">标签</span>
+                <select id="tag-select" aria-labelledby="tag-label" disabled>
+                  <option value="">全部标签</option>
+                </select>
+              </label>
+              <button id="result-trigger" class="filter-result" type="button" aria-haspopup="dialog" aria-controls="poem-list-dialog" disabled>
+                <strong id="result-count">0</strong>
+                <span id="result-unit">篇可赏</span>
+                <span class="filter-result-arrow" aria-hidden="true">›</span>
+              </button>
+              <button id="clear-filter" class="clear-filter" type="button" hidden>清除筛选</button>
+            </section>
+          </details>
 
           <div class="content">
             <aside class="folio" aria-hidden="true">
@@ -92,7 +92,7 @@
                 <div class="author-line"><span>古今</span><span aria-hidden="true">·</span><span>无界</span></div>
                 <section class="original" aria-label="诗词原文">
                   <div class="section-kicker">原文</div>
-                  <div class="verses"><p class="verse">正在展开九百三十八篇已校精选诗词……</p></div>
+                  <div class="verses"><p class="verse">正在展开五十篇深度精读诗词……</p></div>
                 </section>
                 <div class="poem-meta-row">
                   <p class="note">资料来源与篇章信息正在准备中</p>
@@ -108,8 +108,8 @@
               <div class="wash" aria-hidden="true"></div>
               <div id="big-character" class="big-character" aria-hidden="true">诗</div>
               <div id="context" class="context">
-                <strong>先秦至清 · 历代诗心</strong>
-                每一次轻点图标<br>都是一次不期而遇
+                <strong>深度精读 · 逐句点注</strong>
+                轻点诗句读译注<br>再展开篇章导览
               </div>
               <div class="actions">
                 <div class="primary-actions">
@@ -122,37 +122,6 @@
                     <span class="button-arrow" aria-hidden="true">→</span>
                   </button>
                 </div>
-                <label id="auto-next-field" class="auto-next-field" data-active="false">
-                  <span class="auto-next-title">
-                    <span class="auto-next-dot" aria-hidden="true"></span>
-                    <span>自动下一首</span>
-                  </span>
-                  <select id="auto-next-select" aria-label="自动下一首间隔">
-                    <option value="0" selected>关闭（默认）</option>
-                    <option value="30">30 秒</option>
-                    <option value="60">1 分钟</option>
-                    <option value="120">2 分钟</option>
-                    <option value="300">5 分钟</option>
-                    <option value="600">10 分钟</option>
-                    <option value="1200">20 分钟</option>
-                    <option value="1800">30 分钟</option>
-                    <option value="3600">60 分钟</option>
-                  </select>
-                  <span id="auto-next-progress" class="auto-next-progress" hidden>
-                    <span
-                      id="auto-next-progress-track"
-                      class="auto-next-progress-track"
-                      role="progressbar"
-                      aria-label="距离自动下一首的剩余时间"
-                      aria-valuemin="0"
-                      aria-valuemax="0"
-                      aria-valuenow="0"
-                    >
-                      <span id="auto-next-progress-fill" class="auto-next-progress-fill"></span>
-                    </span>
-                    <span id="auto-next-remaining" class="auto-next-remaining">还剩 --:--</span>
-                  </span>
-                </label>
                 <div class="secondary-actions">
                   <button id="previous-action" class="previous-action" type="button" aria-label="暂无上一篇" disabled>
                     <span class="previous-label-full">← 上一篇</span>
@@ -163,15 +132,15 @@
                     <span class="copy-label-short">复制</span>
                   </button>
                 </div>
-                <div id="notice" class="notice" role="status" aria-live="polite">正在展开九百三十八篇已校精选诗词…</div>
+                <div id="notice" class="notice" role="status" aria-live="polite">正在展开五十篇深度精读诗词…</div>
               </div>
             </aside>
           </div>
 
           <footer class="footer">
             <span class="footer-flourish" aria-hidden="true"></span>
-            <span>默认九百三十八篇已校精选，亦可进入四千八百三十四篇全库广览</span>
-            <span class="footer-shortcuts" aria-label="快捷键：D 今日诗签，S 搜索，T 换肤，左方向键上一篇，空格键或右方向键换一篇，F 收藏，C 复制">D 今日诗签 · S 搜索 · T 换肤 · ← 上一篇 · 空格 / → 换一篇 · F 收藏 · C 复制</span>
+            <span>默认五十篇深度精读，诗库另收九百三十八篇已校精选与五千三百三十四篇全库</span>
+            <span class="footer-shortcuts" aria-label="快捷键：D 今日诗签，S 搜索，T 外观，左方向键上一篇，空格键或右方向键换一篇，F 收藏，C 复制">D 今日诗签 · S 搜索 · T 外观 · ← 上一篇 · 空格 / → 换一篇 · F 收藏 · C 复制</span>
             <span class="footer-flourish" aria-hidden="true"></span>
           </footer>
         </div>
@@ -183,10 +152,10 @@
         <header class="theme-dialog-header">
           <div>
             <div class="theme-dialog-kicker">一笺一境</div>
-            <h2 id="theme-dialog-title">挑一款今日皮肤</h2>
-            <p>点击即可预览，选择会自动保存</p>
+            <h2 id="theme-dialog-title">定一笺今日风貌</h2>
+            <p>皮肤、字体与文字均可即时预览，选择会自动保存</p>
           </div>
-          <button id="theme-dialog-close" class="theme-dialog-close" type="button" aria-label="关闭换肤面板">×</button>
+          <button id="theme-dialog-close" class="theme-dialog-close" type="button" aria-label="关闭外观面板">×</button>
         </header>
         <div class="theme-options" role="radiogroup" aria-label="皮肤风格">
           <button class="theme-option" type="button" role="radio" aria-checked="true" data-theme-option="xuan">
@@ -255,6 +224,195 @@
             </span>
             <span class="theme-option-check" aria-hidden="true">✓</span>
           </button>
+        </div>
+        <section class="font-section" aria-labelledby="font-section-title">
+          <header class="font-section-header">
+            <div>
+              <div class="font-section-kicker">字里风骨</div>
+              <h3 id="font-section-title">选择字体</h3>
+            </div>
+            <p>默认雅韵沿用当前字体</p>
+          </header>
+          <div class="font-options" role="radiogroup" aria-label="页面字体">
+            <button class="font-option" type="button" role="radio" aria-checked="true" data-font-option="default">
+              <span class="font-option-preview" aria-hidden="true">山月</span>
+              <span class="font-option-copy">
+                <strong>默认雅韵</strong>
+                <small>当前字体</small>
+              </span>
+              <span class="font-option-check" aria-hidden="true">✓</span>
+            </button>
+            <button class="font-option" type="button" role="radio" aria-checked="false" data-font-option="kai">
+              <span class="font-option-preview" aria-hidden="true">山月</span>
+              <span class="font-option-copy">
+                <strong>楷体书卷</strong>
+                <small>端雅舒展</small>
+              </span>
+              <span class="font-option-check" aria-hidden="true">✓</span>
+            </button>
+            <button class="font-option" type="button" role="radio" aria-checked="false" data-font-option="song">
+              <span class="font-option-preview" aria-hidden="true">山月</span>
+              <span class="font-option-copy">
+                <strong>宋体典雅</strong>
+                <small>清晰隽永</small>
+              </span>
+              <span class="font-option-check" aria-hidden="true">✓</span>
+            </button>
+            <button class="font-option" type="button" role="radio" aria-checked="false" data-font-option="fangsong">
+              <span class="font-option-preview" aria-hidden="true">山月</span>
+              <span class="font-option-copy">
+                <strong>仿宋清朗</strong>
+                <small>古朴匀净</small>
+              </span>
+              <span class="font-option-check" aria-hidden="true">✓</span>
+            </button>
+            <button class="font-option" type="button" role="radio" aria-checked="false" data-font-option="sans">
+              <span class="font-option-preview" aria-hidden="true">山月</span>
+              <span class="font-option-copy">
+                <strong>黑体简净</strong>
+                <small>现代易读</small>
+              </span>
+              <span class="font-option-check" aria-hidden="true">✓</span>
+            </button>
+            <button class="font-option" type="button" role="radio" aria-checked="false" data-font-option="xingshu">
+              <span class="font-option-preview" aria-hidden="true">山月</span>
+              <span class="font-option-copy">
+                <strong>行书逸韵</strong>
+                <small>免费开源</small>
+              </span>
+              <span class="font-option-check" aria-hidden="true">✓</span>
+            </button>
+          </div>
+        </section>
+        <section class="script-section" aria-labelledby="script-section-title">
+          <header class="script-section-header">
+            <div>
+              <div class="script-section-kicker">字随心意</div>
+              <h3 id="script-section-title">文字习惯</h3>
+            </div>
+            <p>切换后将应用到界面、原文、译文与复制内容</p>
+          </header>
+          <div class="script-options" role="radiogroup" aria-label="简繁体中文">
+            <button class="script-option" type="button" role="radio" aria-checked="true" data-script-option="simplified">
+              <span class="script-option-preview" aria-hidden="true">简</span>
+              <span class="script-option-copy">
+                <strong>简体中文</strong>
+                <small>默认</small>
+              </span>
+              <span class="script-option-check" aria-hidden="true">✓</span>
+            </button>
+            <button class="script-option" type="button" role="radio" aria-checked="false" data-script-option="traditional">
+              <span class="script-option-preview" aria-hidden="true">繁</span>
+              <span class="script-option-copy">
+                <strong>繁体中文</strong>
+                <small>完整转换</small>
+              </span>
+              <span class="script-option-check" aria-hidden="true">✓</span>
+            </button>
+          </div>
+        </section>
+        <section class="reading-settings" aria-labelledby="reading-settings-title">
+          <header class="reading-settings-header">
+            <div>
+              <div class="reading-settings-kicker">静心阅读</div>
+              <h3 id="reading-settings-title">阅读节奏</h3>
+            </div>
+            <p>自动切换默认关闭，避免打断逐句精读</p>
+          </header>
+          <label id="auto-next-field" class="auto-next-field" data-active="false">
+            <span class="auto-next-title">
+              <span class="auto-next-dot" aria-hidden="true"></span>
+              <span>自动下一首</span>
+            </span>
+            <select id="auto-next-select" aria-label="自动下一首间隔">
+              <option value="0" selected>关闭（默认）</option>
+              <option value="30">30 秒</option>
+              <option value="60">1 分钟</option>
+              <option value="120">2 分钟</option>
+              <option value="300">5 分钟</option>
+              <option value="600">10 分钟</option>
+              <option value="1200">20 分钟</option>
+              <option value="1800">30 分钟</option>
+              <option value="3600">60 分钟</option>
+            </select>
+            <span id="auto-next-progress" class="auto-next-progress" hidden>
+              <span
+                id="auto-next-progress-track"
+                class="auto-next-progress-track"
+                role="progressbar"
+                aria-label="距离自动下一首的剩余时间"
+                aria-valuemin="0"
+                aria-valuemax="0"
+                aria-valuenow="0"
+              >
+                <span id="auto-next-progress-fill" class="auto-next-progress-fill"></span>
+              </span>
+              <span id="auto-next-remaining" class="auto-next-remaining">还剩 --:--</span>
+            </span>
+          </label>
+        </section>
+      </section>
+    </dialog>
+
+    <dialog id="learning-dialog" class="learning-dialog" aria-labelledby="learning-dialog-title">
+      <section class="learning-dialog-shell">
+        <header class="learning-dialog-header">
+          <div>
+            <div class="learning-dialog-kicker">不看原文</div>
+            <h2 id="learning-dialog-title">逐句回想</h2>
+            <p id="learning-dialog-meta">先回想，再核对；记忆会在用力提取时变牢。</p>
+          </div>
+          <button id="learning-dialog-close" class="learning-dialog-close" type="button" aria-label="关闭逐句回想">×</button>
+        </header>
+        <div id="learning-practice" class="learning-practice">
+          <div class="learning-progress-row">
+            <span id="learning-step">第 1 / 1 句</span>
+            <span
+              id="learning-progress-track"
+              class="learning-progress-track"
+              role="progressbar"
+              aria-label="逐句回想进度"
+              aria-valuemin="0"
+              aria-valuemax="1"
+              aria-valuenow="0"
+            >
+              <span id="learning-progress-fill" class="learning-progress-fill"></span>
+            </span>
+          </div>
+          <p id="learning-prompt" class="learning-prompt"></p>
+          <label class="learning-answer-field">
+            <span>把这一句补完整</span>
+            <input id="learning-answer" type="text" autocomplete="off" spellcheck="false">
+          </label>
+          <div id="learning-result" class="learning-result" role="status" aria-live="polite" hidden>
+            <strong id="learning-result-title"></strong>
+            <p id="learning-result-answer"></p>
+          </div>
+          <div class="learning-step-actions">
+            <button id="learning-check" class="learning-check" type="button">核对答案</button>
+            <button id="learning-next" class="learning-next" type="button" hidden>下一句</button>
+          </div>
+        </div>
+        <div id="learning-complete" class="learning-complete" hidden>
+          <div class="learning-complete-mark" aria-hidden="true">习</div>
+          <h3>这一轮回想完成</h3>
+          <p id="learning-score"></p>
+          <fieldset class="learning-ratings">
+            <legend>结合刚才的回想，选择真实感受</legend>
+            <button type="button" data-learning-rating="again">
+              <strong>还不熟</strong>
+              <small>明天再来</small>
+            </button>
+            <button type="button" data-learning-rating="hard">
+              <strong>有点模糊</strong>
+              <small>缩短间隔</small>
+            </button>
+            <button type="button" data-learning-rating="good">
+              <strong>已经记住</strong>
+              <small>拉长间隔</small>
+            </button>
+          </fieldset>
+          <p id="learning-rating-hint" class="learning-rating-hint"></p>
         </div>
       </section>
     </dialog>

@@ -1,19 +1,27 @@
 {
   "auditDate": "2026-07-30",
-  "releaseVersion": "1.12.0",
+  "releaseVersion": "1.14.0",
   "disclaimer": "Engineering provenance record; not legal advice. Editorial review status is not copyright clearance.",
   "reviewCounts": {
     "reviewed": 938,
-    "pendingReview": 2834,
+    "pendingReview": 3334,
     "aiDraft": 1062,
-    "total": 4834
+    "total": 5334
   },
   "releasePolicy": {
-    "defaultReviewMode": "reviewed",
+    "defaultReviewMode": "deep",
+    "deepReadingCount": 50,
+    "deepReadingUsesOriginalEditorialText": true,
     "fullLibraryRequiresExplicitOptIn": true,
     "copyIncludesSourceAndReviewStatus": true
   },
   "sources": [
+    {
+      "id": "project-original-deep-readings",
+      "records": 50,
+      "sourceFile": "data/deep-readings.json",
+      "distributionStatus": "project-original-editorial-text"
+    },
     {
       "id": "chinese-poetry",
       "url": "https://github.com/chinese-poetry/chinese-poetry",
@@ -41,7 +49,7 @@
       "url": "https://github.com/yht050511/gushiwen",
       "declaredLicense": "MIT",
       "fixedCommit": "409df701b3f91a41c87e5979b092c8c3c42c2123",
-      "records": 2769,
+      "records": 3269,
       "upstreamRightsVerified": false,
       "distributionStatus": "explicit-opt-in-pending-external-clearance"
     },

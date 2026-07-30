@@ -1,6 +1,6 @@
 {
   "name": "shiyi-yike-chrome-extension",
-  "version": "1.12.0",
+  "version": "1.14.0",
   "type": "module",
   "private": true,
   "description": "诗意一刻 Chrome 古诗词阅读扩展",
@@ -17,7 +17,7 @@
     "build:data": "npm run build:preqin && npm run build:dynasties && npm run build:tang-song && npm run build:song-ci && npm run build:song-poetry-selection && npm run build:authors && npm run build:review && npm run build:search",
     "build:store-assets": "node scripts/build-store-assets.mjs",
     "package:extension": "node scripts/package-extension.mjs",
-    "test": "node tests/validate.mjs && node tests/background.mjs && node tests/reading-insights.mjs",
+    "test": "node tests/validate.mjs && node tests/deep-readings.mjs && node tests/learning-progress.mjs && node tests/background.mjs && node tests/reading-insights.mjs",
     "release:prepare": "npm test && npm run build:store-assets && npm run package:extension"
   },
   "devDependencies": {

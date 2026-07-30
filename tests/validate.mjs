@@ -10,7 +10,7 @@ const readJson = (relativePath) =>
 
 const manifest = readJson("manifest.json");
 assert.equal(manifest.manifest_version, 3, "扩展必须使用 Manifest V3");
-assert.equal(manifest.version, "1.12.0");
+assert.equal(manifest.version, "1.14.0");
 assert.equal(
   manifest.chrome_url_overrides,
   undefined,
@@ -28,8 +28,12 @@ const requiredFiles = [
   manifest.background.service_worker,
   "app.js",
   "reading-insights.js",
+  "learning-progress.js",
   "styles.css",
   "extension.css",
+  "data/deep-readings.json",
+  "assets/fonts/ZhiMangXing-Regular.ttf",
+  "assets/fonts/ZhiMangXing-OFL.txt",
   "vendor/opencc-js/full.js",
   "vendor/opencc-js/LICENSE",
   "vendor/opencc-js/THIRD_PARTY_LICENSES.md",
@@ -57,12 +61,12 @@ assert.match(backgroundSource, /chrome\.windows\.update\(tab\.windowId, \{ focus
 assert.match(backgroundSource, /reader-page-ready/, "浏览器恢复页签后应能重新登记阅读页");
 
 const index = readJson("data/poems/index.json");
-assert.equal(index.counts.total, 4834);
+assert.equal(index.counts.total, 5334);
 assert.equal(index.counts.preqin, 370);
 assert.equal(index.counts.shijing, 305);
 assert.equal(index.counts.chuci, 65);
 assert.equal(index.counts.hanweiliuchao, 360);
-assert.equal(index.counts.tang, 1500);
+assert.equal(index.counts.tang, 2000);
 assert.equal(index.counts.song, 1704);
 assert.equal(index.counts.songCi, 1200);
 assert.equal(index.counts.songPoetry, 504);
@@ -70,13 +74,13 @@ assert.equal(index.counts.yuan, 300);
 assert.equal(index.counts.ming, 300);
 assert.equal(index.counts.qing, 300);
 assert.equal(index.counts.reviewed, 938);
-assert.equal(index.counts.pendingReview, 2834);
+assert.equal(index.counts.pendingReview, 3334);
 assert.equal(index.counts.aiDraft, 1062);
-assert.equal(index.poems.length, 4834);
+assert.equal(index.poems.length, 5334);
 
 const indexIds = new Set(index.poems.map((poem) => poem.id));
 const indexById = new Map(index.poems.map((poem) => [poem.id, poem]));
-assert.equal(indexIds.size, 4834, "诗词索引 ID 必须唯一");
+assert.equal(indexIds.size, 5334, "诗词索引 ID 必须唯一");
 assert.deepEqual(
   [...new Set(index.poems.map((poem) => poem.period))],
   ["唐代", "宋代", "先秦", "汉魏六朝", "元代", "明代", "清代"],
@@ -84,10 +88,10 @@ assert.deepEqual(
 );
 
 const searchIndex = readJson("data/poems/search.json");
-assert.equal(searchIndex.count, 4834, "全文搜索索引应覆盖全部诗词");
-assert.equal(searchIndex.records.length, 4834);
+assert.equal(searchIndex.count, 5334, "全文搜索索引应覆盖全部诗词");
+assert.equal(searchIndex.records.length, 5334);
 const searchIds = new Set(searchIndex.records.map(([id]) => id));
-assert.equal(searchIds.size, 4834, "全文搜索索引 ID 必须唯一");
+assert.equal(searchIds.size, 5334, "全文搜索索引 ID 必须唯一");
 for (const id of indexIds) assert.ok(searchIds.has(id), `全文搜索索引缺少诗词：${id}`);
 assert.ok(
   searchIndex.records.some(([, text]) => text.includes("床前明月光")),
@@ -232,7 +236,7 @@ const bodiesById = new Map();
 const reviewCounts = new Map();
 const chunkDirectory = path.join(projectRoot, "data/poems/chunks");
 const chunkFiles = fs.readdirSync(chunkDirectory).filter((name) => name.endsWith(".json")).sort();
-assert.equal(chunkFiles.length, 51, "应包含先秦至清代的全部 51 个分卷");
+assert.equal(chunkFiles.length, 56, "应包含先秦至清代的全部 56 个分卷");
 const expectedChunkCounts = new Map();
 for (const poem of index.poems) {
   expectedChunkCounts.set(poem.chunk, (expectedChunkCounts.get(poem.chunk) ?? 0) + 1);
@@ -288,7 +292,7 @@ assert.equal(bodyIds.size, indexIds.size, "正文数量与索引数量不一致"
 for (const id of indexIds) assert.ok(bodyIds.has(id), `缺少正文：${id}`);
 assert.deepEqual(
   Object.fromEntries(reviewCounts),
-  { reviewed: 938, "ai-draft": 1062, "pending-review": 2834 },
+  { reviewed: 938, "ai-draft": 1062, "pending-review": 3334 },
   "校订状态统计必须与默认精选和全库范围一致",
 );
 
@@ -300,7 +304,7 @@ const additionalSongCi = index.poems.filter((poem) =>
 const selectedSongPoetry = index.poems.filter((poem) =>
   poem.id.startsWith("song-poetry-selection-"),
 );
-assert.equal(additionalTang.length, 500, "唐诗补充卷应新增 500 首");
+assert.equal(additionalTang.length, 1000, "唐诗补充卷应新增 1000 首");
 assert.equal(additionalSong.length, 500, "宋诗补充卷应新增 500 首");
 assert.equal(additionalSongCi.length, 200, "《全宋词》补充卷应新增 200 首");
 assert.equal(selectedSongPoetry.length, 4, "《宋诗选注》点名篇目应新增 4 首");
@@ -313,6 +317,16 @@ assert.ok(
   ),
   "唐诗补充卷的时期、分类与标签应一致",
 );
+for (const [author, minimum] of [
+  ["李白", 100],
+  ["杜甫", 100],
+  ["白居易", 80],
+]) {
+  assert.ok(
+    additionalTang.filter((poem) => poem.author === author).length >= minimum,
+    `唐诗名家扩展卷应重点补充${author}作品`,
+  );
+}
 assert.ok(
   additionalSong.every(
     (poem) =>
@@ -510,12 +524,19 @@ assert.doesNotMatch(newTabHtml, /https?:\/\//, "新标签页不应依赖远程�
 assert.match(newTabHtml, /id="review-mode-select"/, "筛选区应提供校订范围选择");
 assert.match(
   newTabHtml,
-  /<option value="reviewed" selected>已校精选（938）<\/option>/,
-  "校订范围应默认选择 938 篇已校精选",
+  /<option value="deep" selected>深度精读（50）<\/option>/,
+  "阅读范围应默认选择 50 篇深度精读",
+);
+assert.match(newTabHtml, /id="library-panel"/, "完整筛选应收进次级诗库抽屉");
+assert.match(newTabHtml, /id="library-summary"/, "诗库抽屉应显示当前范围摘要");
+assert.match(
+  newTabHtml,
+  /<option value="reviewed">已校精选（938）<\/option>/,
+  "用户应能从精读层进入 938 篇已校精选",
 );
 assert.match(
   newTabHtml,
-  /<option value="all">全库广览（4834）<\/option>/,
+  /<option value="all">全库广览（5334）<\/option>/,
   "用户应能主动进入完整诗库",
 );
 assert.match(newTabHtml, /id="period-select"/, "筛选区应提供朝代下拉");
@@ -525,6 +546,14 @@ assert.match(newTabHtml, /id="result-trigger"/, "“篇可赏”数量应提供�
 assert.match(newTabHtml, /id="poem-list-dialog"/, "应提供当前筛选结果的诗词列表弹层");
 assert.match(newTabHtml, /id="search-trigger"/, "顶部应提供全库诗词搜索入口");
 assert.match(newTabHtml, /id="daily-trigger"/, "顶部应提供今日诗签入口");
+assert.match(newTabHtml, /id="daily-trigger-mark"/, "今日入口应能切换为到期复习状态");
+assert.match(newTabHtml, /id="learning-dialog"/, "精读作品应提供逐句回想弹层");
+assert.match(newTabHtml, /id="learning-answer"/, "逐句回想应要求用户先写下答案");
+assert.match(
+  newTabHtml,
+  /data-learning-rating="again"[\s\S]*data-learning-rating="hard"[\s\S]*data-learning-rating="good"/,
+  "回想结束后应提供三档真实感受反馈",
+);
 assert.match(newTabHtml, /id="search-dialog"/, "应提供全库诗词搜索弹层");
 assert.match(newTabHtml, /id="global-search-input"/, "搜索弹层应提供关键词输入框");
 assert.match(newTabHtml, /当前范围寻诗/, "搜索弹层应明确继承当前校订范围");
@@ -533,14 +562,30 @@ assert.match(newTabHtml, /id="author-works-action"/, "人物简介应提供作�
 assert.match(newTabHtml, /id="theme-trigger"/, "顶部应提供皮肤切换入口");
 assert.match(newTabHtml, /id="theme-dialog"/, "应提供皮肤选择面板");
 assert.match(newTabHtml, /data-script="simplified"/, "新标签页应默认使用简体中文");
-assert.match(newTabHtml, /id="script-trigger"/, "顶部应提供一键简繁切换入口");
-assert.match(newTabHtml, /id="auto-next-select"/, "“下一首”操作区应提供自动切换间隔");
+assert.doesNotMatch(newTabHtml, /id="script-trigger"/, "简繁切换不应继续占用顶部导航");
+assert.match(newTabHtml, /data-script-option="simplified"/, "外观面板应提供简体中文选项");
+assert.match(newTabHtml, /data-script-option="traditional"/, "外观面板应提供繁体中文选项");
+assert.ok(
+  newTabHtml.indexOf("data-script-option") > newTabHtml.indexOf('id="theme-dialog"'),
+  "简繁选项应融合到外观面板中",
+);
+assert.match(newTabHtml, /id="auto-next-select"/, "外观设置应提供自动切换间隔");
+assert.ok(
+  newTabHtml.indexOf('id="auto-next-field"') > newTabHtml.indexOf('id="theme-dialog"'),
+  "自动下一首应从主阅读操作区移入外观设置",
+);
+assert.ok(
+  !newTabHtml
+    .slice(newTabHtml.indexOf('<div class="actions">'), newTabHtml.indexOf("</aside>"))
+    .includes('id="auto-next-field"'),
+  "自动下一首不应继续占用主阅读操作区",
+);
 assert.match(newTabHtml, /id="auto-next-progress"/, "开启自动下一首后应显示进度条");
 assert.match(newTabHtml, /id="previous-action"/, "阅读操作区应提供上一篇入口");
 assert.match(newTabHtml, /D 今日诗签/, "页面应说明今日诗签快捷键");
 assert.match(
   newTabHtml,
-  /快捷键：D 今日诗签，S 搜索，T 换肤，左方向键上一篇/,
+  /快捷键：D 今日诗签，S 搜索，T 外观，左方向键上一篇/,
   "页面应向键盘用户说明上一篇快捷键",
 );
 assert.match(
@@ -604,14 +649,19 @@ assert.ok(
 const appSource = fs.readFileSync(path.join(projectRoot, "app.js"), "utf8");
 assert.match(appSource, /state\.category === "收藏"/, "收藏入口应筛选本地收藏 ID");
 assert.match(appSource, /state\.period/, "朝代下拉应通过独立时期状态筛选");
-assert.match(appSource, /reviewMode: "reviewed"/, "应用状态应默认使用已校精选范围");
+assert.match(appSource, /reviewMode: "deep"/, "应用状态应默认使用深度精读范围");
 assert.match(appSource, /function matchesReviewMode\(poem\)/, "随机、筛选和搜索应共用校订范围规则");
 assert.match(
   appSource,
-  /state\.reviewMode === "all" \|\| poem\.reviewStatus === "reviewed"/,
-  "默认范围不得展示待校或 AI 草稿",
+  /state\.reviewMode === "deep"[\s\S]*poem\.depthStatus === "deep"/,
+  "默认范围只能展示已建立精读稿的作品",
 );
-assert.match(appSource, /const REVIEW_MODE_KEY = "poem-review-mode-v1"/, "校订范围应使用独立的本地存储键");
+assert.match(appSource, /function reviewModeLabel\(/, "界面应统一展示三层诗库名称");
+assert.match(
+  appSource,
+  /const REVIEW_MODE_KEY = "poem-review-mode-v2"/,
+  "深度默认范围应使用新版独立存储键完成升级迁移",
+);
 assert.match(appSource, /function loadReviewModePreference\(\)/, "重新打开页面时应恢复校订范围偏好");
 assert.match(appSource, /matchesReviewMode\(item\.poem\)/, "全文搜索应遵循当前校订范围");
 assert.match(appSource, /PERIOD_ORDER/, "朝代选项应保持历史顺序");
@@ -628,9 +678,53 @@ assert.match(appSource, /pending-review/, "联网新增译文应在界面中明�
 assert.match(appSource, /const THEME_KEY = "poem-theme-v1"/, "皮肤选择应使用独立的本地存储键");
 assert.match(appSource, /document\.documentElement\.dataset\.theme/, "皮肤选择应应用到页面根元素");
 assert.match(appSource, /function loadTheme\(\)/, "重新打开页面时应恢复已选皮肤");
+assert.match(appSource, /const FONT_KEY = "poem-font-v1"/, "字体选择应使用独立的本地存储键");
+assert.match(appSource, /font: "default"/, "默认字体应沿用当前字体组合");
+assert.match(appSource, /document\.documentElement\.dataset\.font/, "字体选择应应用到页面根元素");
+assert.match(appSource, /function loadFont\(\)/, "重新打开页面时应恢复已选字体");
+assert.match(
+  appSource,
+  /FONTS\.has\(fontId\) \? fontId : "default"/,
+  "旧版本若保存了已移除字体，升级后应安全回退到默认字体",
+);
+assert.match(newTabHtml, /data-font-option="default"/, "外观面板应提供当前字体作为默认选项");
+assert.equal(
+  (newTabHtml.match(/data-font-option=/g) ?? []).length,
+  6,
+  "外观面板应提供六种字体选择",
+);
+assert.match(newTabHtml, /data-font-option="xingshu"/, "外观面板应提供免费行书选项");
+assert.match(appSource, /\["xingshu", \{ name: "行书逸韵" \}\]/, "行书选项应接入字体状态");
+assert.doesNotMatch(newTabHtml, /data-font-option="caoshu"|草书飞扬/, "外观面板不应保留草书选项");
+assert.doesNotMatch(appSource, /caoshu|草书飞扬/, "字体状态不应保留已移除的草书映射");
+assert.match(
+  fs.readFileSync(path.join(projectRoot, "extension.css"), "utf8"),
+  /assets\/fonts\/ZhiMangXing-Regular\.ttf/,
+  "行书字体应从扩展包本地加载",
+);
+assert.equal(
+  fs.existsSync(path.join(projectRoot, "assets/fonts/LiuJianMaoCao-Regular.ttf")),
+  false,
+  "已移除的草书字体文件不应继续占用扩展包",
+);
+assert.equal(
+  fs.existsSync(path.join(projectRoot, "assets/fonts/LiuJianMaoCao-OFL.txt")),
+  false,
+  "已移除字体的许可文件不应继续随包分发",
+);
+assert.doesNotMatch(
+  fs.readFileSync(path.join(projectRoot, "extension.css"), "utf8"),
+  /Liu Jian Mao Cao|LiuJianMaoCao|data-font="caoshu"/,
+  "样式中不应残留草书字体声明",
+);
+assert.match(
+  fs.readFileSync(path.join(projectRoot, "scripts/package-extension.mjs"), "utf8"),
+  /扩展包仍包含已移除资源/,
+  "发布流程应阻止草书字体资源重新混入扩展包",
+);
 assert.match(appSource, /const SCRIPT_KEY = "poem-script-v1"/, "简繁选择应使用独立的本地存储键");
 assert.match(appSource, /script: "simplified"/, "应用状态应默认使用简体中文");
-assert.match(appSource, /function toggleScript\(\)/, "应支持一键切换简繁体");
+assert.match(appSource, /function updateScriptOptions\(\)/, "外观面板应同步简繁选中状态");
 assert.match(appSource, /function loadScriptPreference\(\)/, "重新打开页面时应恢复简繁偏好");
 assert.match(
   appSource,
@@ -653,13 +747,39 @@ assert.match(
 assert.match(appSource, /function dailyPoemForToday\(\)/, "应按本地日期生成今日诗签");
 assert.match(
   appSource,
-  /poem\.reviewStatus === "reviewed"/,
-  "今日诗签必须限定在已校精选诗库",
+  /poem\.depthStatus === "deep"/,
+  "今日诗签必须限定在深度精读层",
 );
 assert.match(appSource, /function openDailyPoem\(\)/, "应支持直接打开今日诗签");
 assert.match(appSource, /function loadReadingStats\(\)/, "应恢复本地阅读统计");
 assert.match(appSource, /recordReading\(poem\.id\)/, "成功展开诗词后应记录阅读");
 assert.match(appSource, /readingStreak\(state\.readingStats/, "状态区应显示连续阅读天数");
+assert.match(
+  appSource,
+  /const LEARNING_PROGRESS_KEY = "poem-learning-progress-v1"/,
+  "学习进度应使用独立的本地存储键",
+);
+assert.match(appSource, /function createLearningCard\(poem\)/, "精读页应提供学习入口与复习状态");
+assert.match(appSource, /function openLearningPractice\(poem\)/, "应支持进入不看原文的逐句回想");
+assert.match(appSource, /function checkLearningAnswer\(\)/, "逐句回想应先核对用户输入");
+assert.match(appSource, /function rateLearningPractice\(rating\)/, "完成回想后应按反馈安排复习");
+assert.match(
+  appSource,
+  /完成三次按期复习且全对，才会进入“已掌握”/,
+  "练习结束页应向用户解释严格的掌握门槛",
+);
+assert.match(appSource, /function loadLearningProgress\(\)/, "重新打开页面时应恢复本地学习进度");
+assert.match(appSource, /function dueLearningPoems\(\)/, "今日入口应优先处理到期复习");
+assert.match(
+  appSource,
+  /if \(opened && dueCount && state\.current\) openLearningPractice\(state\.current\)/,
+  "点击到期复习入口后应直接进入主动回想",
+);
+assert.match(
+  appSource,
+  /dueCount \? `复习 \$\{dueCount\}` : "今日"/,
+  "有到期任务时今日入口应明确显示待复习数量",
+);
 assert.match(
   appSource,
   /new Set\(state\.recentPoemIds\)/,
@@ -728,6 +848,13 @@ for (const contextField of ["作品 ID", "原文来源", "译文来源", "扩展
 }
 assert.match(appSource, /GitHub Issue 提交后为公开内容/, "纠错模板应提示 Issue 为公开内容");
 assert.match(appSource, /function createPoemMeta\(text\)/, "正文资料信息行应承载纠错入口");
+assert.match(appSource, /function createDeepReadingGuide\(poem\)/, "深度作品应提供固定结构的精读导览");
+assert.match(
+  appSource,
+  /makeElement\("button", "verse verse-trigger"\)/,
+  "深度作品应支持点击诗句逐句展开",
+);
+assert.match(appSource, /data\/deep-readings\.json/, "精读数据必须从扩展包本地加载");
 assert.doesNotMatch(appSource, /fetch\([^)]*github\.com/, "扩展不应自动向 GitHub 发送请求");
 assert.match(appSource, /function renderAuthorSource\(profile\)/, "人物小传应渲染可核对的来源");
 assert.match(appSource, /sourceLink\.rel = "noopener noreferrer"/, "人物资料外链应隔离来源页面");
@@ -736,11 +863,13 @@ const licenseAudit = readJson("data/sources/content-license-audit.json");
 assert.equal(licenseAudit.releaseVersion, manifest.version);
 assert.deepEqual(licenseAudit.reviewCounts, {
   reviewed: 938,
-  pendingReview: 2834,
+  pendingReview: 3334,
   aiDraft: 1062,
-  total: 4834,
+  total: 5334,
 });
-assert.equal(licenseAudit.releasePolicy.defaultReviewMode, "reviewed");
+assert.equal(licenseAudit.releasePolicy.defaultReviewMode, "deep");
+assert.equal(licenseAudit.releasePolicy.deepReadingCount, 50);
+assert.equal(licenseAudit.releasePolicy.deepReadingUsesOriginalEditorialText, true);
 assert.equal(licenseAudit.releasePolicy.fullLibraryRequiresExplicitOptIn, true);
 assert.equal(licenseAudit.releasePolicy.copyIncludesSourceAndReviewStatus, true);
 assert.equal(
@@ -779,10 +908,16 @@ assert.match(
   "应为 800×600 等低高度窗口提供紧凑布局",
 );
 assert.match(extensionStyles, /\.secondary-actions/, "上一篇与复制操作应共享紧凑的次级操作区");
-assert.match(extensionStyles, /\.script-trigger/, "应提供简繁切换控件样式");
+assert.match(extensionStyles, /\.script-option/, "外观面板应提供简繁选项样式");
 assert.match(extensionStyles, /\.daily-trigger/, "应提供今日诗签控件样式");
 assert.match(extensionStyles, /\.auto-next-field/, "应提供自动下一首控件样式");
 assert.match(extensionStyles, /\.auto-next-progress-track/, "应提供自动下一首进度条样式");
+assert.match(extensionStyles, /\.library-panel/, "完整筛选应提供次级诗库抽屉样式");
+assert.match(extensionStyles, /\.verse-trigger/, "逐句点注应提供可交互诗句样式");
+assert.match(extensionStyles, /\.deep-reading-guide/, "应提供精读导览样式");
+assert.match(extensionStyles, /\.learning-card/, "精读页应提供学习状态卡片样式");
+assert.match(extensionStyles, /\.learning-dialog/, "逐句回想应提供专用弹层样式");
+assert.match(extensionStyles, /\.learning-ratings/, "练习结束页应提供自评选项样式");
 assert.match(extensionStyles, /font-variant-numeric: tabular-nums/, "剩余时间数字宽度应保持稳定");
 for (const theme of ["xuan", "yuebai", "qingci", "taojian", "zhuying", "songyan"]) {
   assert.match(
@@ -798,5 +933,5 @@ assert.equal(toTraditional("明月几时有，把酒问青天"), "明月幾時�
 assert.equal(toSimplified("明月幾時有，把酒問青天"), "明月几时有，把酒问青天");
 
 console.log(
-  `✓ Manifest V3、入口复用、938 篇已校精选、全文搜索、${authorData.counts.total} 位作者简介及 4834 篇诗词数据均通过校验`,
+  `✓ Manifest V3、入口复用、50 篇深度精读、全文搜索、${authorData.counts.total} 位作者简介及 5334 篇诗词数据均通过校验`,
 );

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "诗意一刻",
-  "version": "1.12.0",
-  "description": "点击工具栏图标，在先秦至清代的古典诗词之间随机漫游，不替换浏览器的新标签页。",
+  "version": "1.14.0",
+  "description": "点击工具栏图标，逐句精读、主动回想并按期复习精选古典诗词，不替换浏览器的新标签页。",
   "icons": {
     "16": "assets/icons/icon-16.png",
     "32": "assets/icons/icon-32.png",

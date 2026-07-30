@@ -5,14 +5,25 @@ import {
   normalizeReadingStats,
   readingStreak,
 } from "./reading-insights.js";
+import {
+  checkRecallAnswer,
+  createRecallPrompt,
+  dueLearningPoemIds,
+  learningProgressCounts,
+  normalizeLearningProgress,
+  scheduleLearningReview,
+} from "./learning-progress.js";
 
-const DATA_VERSION = "1.12.0";
+const DATA_VERSION = "1.14.0";
 const FAVORITES_KEY = "poem-favorites-v2";
 const THEME_KEY = "poem-theme-v1";
+const FONT_KEY = "poem-font-v1";
 const SCRIPT_KEY = "poem-script-v1";
 const AUTO_NEXT_KEY = "poem-auto-next-seconds-v1";
-const REVIEW_MODE_KEY = "poem-review-mode-v1";
+// v2 将 1.13 的新默认迁移到“深度精读”；旧版保存的“已校精选”不应绕过本次定位升级。
+const REVIEW_MODE_KEY = "poem-review-mode-v2";
 const READING_STATS_KEY = "poem-reading-stats-v1";
+const LEARNING_PROGRESS_KEY = "poem-learning-progress-v1";
 // 自动切换首次使用时保持关闭；用户主动选择过的合法间隔仍会从本地设置恢复。
 const DEFAULT_AUTO_NEXT_SECONDS = 0;
 const AUTO_NEXT_INTERVALS = new Set([0, 30, 60, 120, 300, 600, 1200, 1800, 3600]);
@@ -27,6 +38,14 @@ const THEMES = new Map([
   ["taojian", { name: "桃花小笺", shortName: "桃笺", colorScheme: "light", themeColor: "#d9c1bd" }],
   ["zhuying", { name: "竹影新绿", shortName: "竹影", colorScheme: "light", themeColor: "#bcc1ae" }],
   ["songyan", { name: "松烟夜读", shortName: "松烟", colorScheme: "dark", themeColor: "#101513" }],
+]);
+const FONTS = new Map([
+  ["default", { name: "默认雅韵" }],
+  ["kai", { name: "楷体书卷" }],
+  ["song", { name: "宋体典雅" }],
+  ["fangsong", { name: "仿宋清朗" }],
+  ["sans", { name: "黑体简净" }],
+  ["xingshu", { name: "行书逸韵" }],
 ]);
 // 诗库只保留一份简体源数据：展示时转为繁体，搜索时再归一化为简体，避免维护两套正文。
 const OPENCC = globalThis.OpenCC;
@@ -49,22 +68,28 @@ const state = {
   index: [],
   poemsById: new Map(),
   authors: new Map(),
+  deepReadings: new Map(),
+  deepSources: new Map(),
+  deepEditorialPolicy: "",
   category: "全部",
   period: "",
   author: "",
   tag: "",
-  reviewMode: "reviewed",
-  reviewCounts: { reviewed: 0, all: 0 },
+  reviewMode: "deep",
+  reviewCounts: { deep: 0, reviewed: 0, all: 0 },
   current: null,
   previousPoems: [],
   recentPoemIds: [],
   activeAuthor: null,
   theme: "xuan",
+  font: "default",
   script: "simplified",
-  noticeMessage: "正在展开九百三十八篇已校精选诗词…",
+  noticeMessage: "正在展开五十篇深度精读诗词…",
   emptyCollection: false,
   favorites: new Set(),
   readingStats: normalizeReadingStats(null),
+  learningProgress: normalizeLearningProgress(null),
+  practice: null,
   chunks: new Map(),
   searchRecordsPromise: null,
   searchRequestId: 0,
@@ -85,10 +110,12 @@ const elements = {
   themeDialog: document.querySelector("#theme-dialog"),
   themeDialogClose: document.querySelector("#theme-dialog-close"),
   themeOptions: [...document.querySelectorAll("[data-theme-option]")],
-  scriptTrigger: document.querySelector("#script-trigger"),
-  scriptTriggerMark: document.querySelector("#script-trigger-mark"),
-  scriptTriggerName: document.querySelector("#script-trigger-name"),
+  fontOptions: [...document.querySelectorAll("[data-font-option]")],
+  scriptOptions: [...document.querySelectorAll("[data-script-option]")],
   dailyTrigger: document.querySelector("#daily-trigger"),
+  dailyTriggerMark: document.querySelector("#daily-trigger-mark"),
+  dailyTriggerName: document.querySelector("#daily-trigger-name"),
+  librarySummary: document.querySelector("#library-summary"),
   reviewModeSelect: document.querySelector("#review-mode-select"),
   periodSelect: document.querySelector("#period-select"),
   authorLabel: document.querySelector("#author-label"),
@@ -141,6 +168,27 @@ const elements = {
   authorDialogClose: document.querySelector("#author-dialog-close"),
   authorWorksAction: document.querySelector("#author-works-action"),
   authorWorksCount: document.querySelector("#author-works-count"),
+  learningDialog: document.querySelector("#learning-dialog"),
+  learningDialogTitle: document.querySelector("#learning-dialog-title"),
+  learningDialogMeta: document.querySelector("#learning-dialog-meta"),
+  learningDialogClose: document.querySelector("#learning-dialog-close"),
+  learningPractice: document.querySelector("#learning-practice"),
+  learningStep: document.querySelector("#learning-step"),
+  learningProgressTrack: document.querySelector("#learning-progress-track"),
+  learningProgressFill: document.querySelector("#learning-progress-fill"),
+  learningPrompt: document.querySelector("#learning-prompt"),
+  learningAnswer: document.querySelector("#learning-answer"),
+  learningCheck: document.querySelector("#learning-check"),
+  learningNext: document.querySelector("#learning-next"),
+  learningResult: document.querySelector("#learning-result"),
+  learningResultTitle: document.querySelector("#learning-result-title"),
+  learningResultAnswer: document.querySelector("#learning-result-answer"),
+  learningComplete: document.querySelector("#learning-complete"),
+  learningScore: document.querySelector("#learning-score"),
+  learningRatingHint: document.querySelector("#learning-rating-hint"),
+  learningRatingButtons: [
+    ...document.querySelectorAll("[data-learning-rating]"),
+  ],
 };
 
 function displayText(value) {
@@ -167,6 +215,20 @@ function makeElement(tag, className, text) {
   return element;
 }
 
+function updateAppearanceTrigger() {
+  const theme = THEMES.get(state.theme);
+  const font = FONTS.get(state.font);
+  const scriptName = state.script === "traditional" ? "繁体中文" : "简体中文";
+  setLocalizedAttribute(
+    elements.themeTrigger,
+    "aria-label",
+    `打开外观设置，当前皮肤为${theme.name}，字体为${font.name}，文字为${scriptName}`,
+  );
+  elements.themeTrigger.title = displayText(
+    `外观设置 · ${theme.shortName} · ${font.name} · ${scriptName}`,
+  );
+}
+
 function applyTheme(themeId, options = {}) {
   const normalizedThemeId = THEMES.has(themeId) ? themeId : "xuan";
   const theme = THEMES.get(normalizedThemeId);
@@ -175,7 +237,7 @@ function applyTheme(themeId, options = {}) {
   document.documentElement.style.colorScheme = theme.colorScheme;
   elements.themeColorMeta.content = theme.themeColor;
   setLocalizedText(elements.themeTriggerName, theme.shortName);
-  setLocalizedAttribute(elements.themeTrigger, "aria-label", `更换皮肤，当前为${theme.name}`);
+  updateAppearanceTrigger();
 
   for (const option of elements.themeOptions) {
     option.setAttribute(
@@ -186,6 +248,24 @@ function applyTheme(themeId, options = {}) {
 
   if (options.persist) saveTheme();
   if (options.announce) updateNotice(`已换上「${theme.name}」`);
+}
+
+function applyFont(fontId, options = {}) {
+  const normalizedFontId = FONTS.has(fontId) ? fontId : "default";
+  const font = FONTS.get(normalizedFontId);
+  state.font = normalizedFontId;
+  document.documentElement.dataset.font = normalizedFontId;
+  updateAppearanceTrigger();
+
+  for (const option of elements.fontOptions) {
+    option.setAttribute(
+      "aria-checked",
+      String(option.dataset.fontOption === normalizedFontId),
+    );
+  }
+
+  if (options.persist) saveFont();
+  if (options.announce) updateNotice(`已切换为「${font.name}」`);
 }
 
 function loadTheme() {
@@ -220,6 +300,38 @@ function saveTheme() {
   }
 }
 
+function loadFont() {
+  return new Promise((resolve) => {
+    const finish = (fontId) => {
+      applyFont(typeof fontId === "string" ? fontId : "default");
+      resolve();
+    };
+
+    if (!globalThis.chrome?.storage?.local) {
+      try {
+        finish(localStorage.getItem(FONT_KEY));
+      } catch {
+        finish("default");
+      }
+      return;
+    }
+
+    chrome.storage.local.get([FONT_KEY], (result) => finish(result[FONT_KEY]));
+  });
+}
+
+function saveFont() {
+  if (globalThis.chrome?.storage?.local) {
+    chrome.storage.local.set({ [FONT_KEY]: state.font });
+    return;
+  }
+  try {
+    localStorage.setItem(FONT_KEY, state.font);
+  } catch {
+    // 隐私浏览或受限预览环境可能禁止本地存储，字体仍可在本次页面中使用。
+  }
+}
+
 function openThemeDialog() {
   clearAutoNextTimer();
   if (!elements.themeDialog.open) elements.themeDialog.showModal();
@@ -228,19 +340,18 @@ function openThemeDialog() {
     ?.focus({ preventScroll: true });
 }
 
-function updateScriptTrigger() {
-  const traditional = state.script === "traditional";
-  const targetName = traditional ? "简体" : "繁体";
-  setLocalizedText(elements.scriptTriggerMark, targetName[0]);
-  setLocalizedText(elements.scriptTriggerName, targetName);
-  elements.scriptTrigger.setAttribute("aria-pressed", String(traditional));
-  setLocalizedAttribute(elements.scriptTrigger, "aria-label", `切换为${targetName}中文`);
-  elements.scriptTrigger.title = displayText(`切换为${targetName}中文`);
+function updateScriptOptions() {
+  for (const option of elements.scriptOptions) {
+    option.setAttribute(
+      "aria-checked",
+      String(option.dataset.scriptOption === state.script),
+    );
+  }
 }
 
 function refreshLocalizedSurface() {
   applyTheme(state.theme);
-  updateScriptTrigger();
+  updateScriptOptions();
   updateAutoNextControl();
   updateFeedbackLink(state.current);
   if (state.index.length) renderFilters();
@@ -395,7 +506,13 @@ function autoNextCanRun() {
     Boolean(state.current) &&
     filteredPoems().length > 1 &&
     !document.hidden &&
-    ![elements.poemListDialog, elements.searchDialog, elements.authorDialog, elements.themeDialog]
+    ![
+      elements.poemListDialog,
+      elements.searchDialog,
+      elements.authorDialog,
+      elements.themeDialog,
+      elements.learningDialog,
+    ]
       .some((dialog) => dialog.open)
   );
 }
@@ -477,13 +594,6 @@ function saveScriptPreference() {
   }
 }
 
-function toggleScript() {
-  applyScript(state.script === "traditional" ? "simplified" : "traditional", {
-    persist: true,
-    announce: true,
-  });
-}
-
 function normalizeMeta(meta, ordinal) {
   const reviewStatus =
     meta.reviewStatus === "reviewed"
@@ -504,6 +614,12 @@ function normalizeMeta(meta, ordinal) {
             : meta.dynasty),
     tags: Array.isArray(meta.tags) ? meta.tags : [],
     reviewStatus,
+    // 深度层只由独立精读稿显式授予；“已校订”不会自动等同于“深度精读”。
+    depthStatus: state.deepReadings.has(meta.id)
+      ? "deep"
+      : reviewStatus === "reviewed"
+        ? "reviewed"
+        : "basic",
     ordinal: Number.isInteger(meta.ordinal) ? meta.ordinal : ordinal,
   };
 }
@@ -576,6 +692,7 @@ function updateFeedbackLink(poem) {
 }
 
 function matchesReviewMode(poem) {
+  if (state.reviewMode === "deep") return poem.depthStatus === "deep";
   return state.reviewMode === "all" || poem.reviewStatus === "reviewed";
 }
 
@@ -629,31 +746,51 @@ function chooseRandom(poems, excludedId = state.current?.id) {
 }
 
 function dailyPoemForToday() {
-  // 今日诗签只从已校精选中选择，并按本地日期稳定映射，同一天反复打开仍是同一篇。
-  const reviewedPoems = state.index.filter(
-    (poem) => poem.reviewStatus === "reviewed",
+  // 今日诗签只从已完成逐句点注与导览的精读层选择，同一天反复打开仍是同一篇。
+  const deepPoems = state.index.filter(
+    (poem) => poem.depthStatus === "deep",
   );
-  return reviewedPoems[dailyPoemIndex(localDateKey(), reviewedPoems.length)] ?? null;
+  return deepPoems[dailyPoemIndex(localDateKey(), deepPoems.length)] ?? null;
+}
+
+function dueLearningPoems() {
+  return dueLearningPoemIds(state.learningProgress, localDateKey())
+    .map((id) => state.poemsById.get(id))
+    .filter((poem) => poem?.depthStatus === "deep");
+}
+
+function dailyActionTarget() {
+  const duePoems = dueLearningPoems();
+  return {
+    poem: duePoems[0] ?? dailyPoemForToday(),
+    dueCount: duePoems.length,
+  };
 }
 
 function renderDailyAction() {
-  const dailyPoem = dailyPoemForToday();
-  const selected = Boolean(dailyPoem && state.current?.id === dailyPoem.id);
-  elements.dailyTrigger.disabled = state.busy || !dailyPoem;
+  const { poem, dueCount } = dailyActionTarget();
+  const selected = Boolean(poem && state.current?.id === poem.id);
+  elements.dailyTrigger.disabled = state.busy || !poem;
   elements.dailyTrigger.setAttribute("aria-pressed", String(selected));
-  const label = !dailyPoem
+  setLocalizedText(elements.dailyTriggerMark, dueCount ? "习" : "今");
+  setLocalizedText(elements.dailyTriggerName, dueCount ? `复习 ${dueCount}` : "今日");
+  const label = !poem
     ? "今日诗签正在准备"
-    : selected
-      ? `今日诗签《${dailyPoem.title}》，当前正在阅读`
-      : `打开今日诗签《${dailyPoem.title}》`;
+    : dueCount
+      ? selected
+        ? `今日有 ${dueCount} 篇待复习，当前正在阅读《${poem.title}》`
+        : `今日有 ${dueCount} 篇待复习，打开《${poem.title}》`
+      : selected
+        ? `今日诗签《${poem.title}》，当前正在阅读`
+        : `打开今日诗签《${poem.title}》`;
   setLocalizedAttribute(elements.dailyTrigger, "aria-label", label);
   elements.dailyTrigger.title = displayText(label);
 }
 
 async function openDailyPoem() {
-  const poem = dailyPoemForToday();
+  const { poem, dueCount } = dailyActionTarget();
   if (!poem || state.busy) return;
-  state.reviewMode = "reviewed";
+  state.reviewMode = "deep";
   state.category = "全部";
   state.period = "";
   state.author = "";
@@ -661,9 +798,13 @@ async function openDailyPoem() {
   resetReadingHistory();
   saveReviewModePreference();
   renderFilters();
-  await showPoem(poem, `今日诗签 · 《${poem.title}》`, {
-    recordPrevious: false,
-  });
+  const opened = await showPoem(
+    poem,
+    dueCount ? `今日复习 · 《${poem.title}》` : `今日诗签 · 《${poem.title}》`,
+    { recordPrevious: false },
+  );
+  // “复习”入口直接进入主动回想，避免用户打开到期作品后还要寻找第二个按钮。
+  if (opened && dueCount && state.current) openLearningPractice(state.current);
 }
 
 function categoryAuthorLabel() {
@@ -700,6 +841,7 @@ function setOptions(select, placeholder, values, selectedValue) {
 
 function renderReviewModeOptions() {
   const options = [
+    { value: "deep", label: `深度精读（${state.reviewCounts.deep}）` },
     { value: "reviewed", label: `已校精选（${state.reviewCounts.reviewed}）` },
     { value: "all", label: `全库广览（${state.reviewCounts.all}）` },
   ];
@@ -766,8 +908,23 @@ function renderFilters() {
     "aria-label",
     `已收藏 ${state.favorites.size} 篇`,
   );
+  const modeName = reviewModeLabel();
+  setLocalizedText(
+    elements.librarySummary,
+    `诗库 · ${modeName} ${resultTotal} ${unit}`,
+  );
   elements.clearFilter.hidden =
     state.category === "全部" && !state.period && !state.author && !state.tag;
+}
+
+function reviewModeLabel(mode = state.reviewMode) {
+  if (mode === "deep") return "深度精读";
+  if (mode === "reviewed") return "已校精选";
+  return "全库广览";
+}
+
+function reviewModeCount(mode = state.reviewMode) {
+  return state.reviewCounts[mode] ?? 0;
 }
 
 function renderPreviousAction() {
@@ -836,7 +993,7 @@ function updateNotice(message) {
 
 function currentFilterSummary() {
   const parts = [
-    state.reviewMode === "reviewed" ? "已校精选" : "全库广览",
+    reviewModeLabel(),
     state.category === "收藏" ? "我的收藏" : "全部诗词",
   ];
   if (state.period) parts.push(state.period);
@@ -975,8 +1132,7 @@ function searchScore(poem, record, query) {
 async function renderGlobalSearch() {
   const query = normalizeSearchValue(elements.globalSearchInput.value);
   const requestId = ++state.searchRequestId;
-  const searchableCount =
-    state.reviewMode === "reviewed" ? state.reviewCounts.reviewed : state.reviewCounts.all;
+  const searchableCount = reviewModeCount();
   elements.searchResults.replaceChildren();
   elements.searchResults.hidden = true;
 
@@ -1057,8 +1213,7 @@ async function openGlobalSearch() {
   setLocalizedText(elements.searchSummary, "正在准备本地全文索引…");
   elements.searchResults.replaceChildren();
   elements.searchResults.hidden = true;
-  const searchableCount =
-    state.reviewMode === "reviewed" ? state.reviewCounts.reviewed : state.reviewCounts.all;
+  const searchableCount = reviewModeCount();
   setLocalizedText(elements.searchEmpty, `正在展开当前范围的 ${searchableCount} 篇诗词…`);
   elements.searchEmpty.hidden = false;
   elements.searchDialog.showModal();
@@ -1232,12 +1387,193 @@ function createAuthorLine(poem) {
 
 function createOriginal(poem) {
   const section = makeElement("section", "original");
-  setLocalizedAttribute(section, "aria-label", "诗词原文");
-  section.append(makeElement("div", "section-kicker", "原文"));
+  const hasDeepReading = Boolean(poem.deepReading);
+  setLocalizedAttribute(
+    section,
+    "aria-label",
+    hasDeepReading ? "诗词原文与逐句点注" : "诗词原文",
+  );
+  const heading = makeElement("div", "original-heading");
+  heading.append(makeElement("div", "section-kicker", "原文"));
+  if (hasDeepReading) {
+    heading.append(makeElement("span", "line-reading-hint", "轻点诗句，逐句读懂"));
+  }
+  section.append(heading);
   const verses = makeElement("div", "verses");
-  for (const verse of poem.lines) verses.append(makeElement("p", "verse", verse));
+  if (!hasDeepReading) {
+    for (const verse of poem.lines) verses.append(makeElement("p", "verse", verse));
+    section.append(verses);
+    return section;
+  }
+
+  // 每句只在读者主动点开后显示对齐译文和难词，保持首屏仍以原文为中心。
+  poem.lines.forEach((verse, lineIndex) => {
+    const study = makeElement("div", "verse-study");
+    const panelId = `deep-line-${poem.id}-${lineIndex}`;
+    const button = makeElement("button", "verse verse-trigger");
+    button.type = "button";
+    button.setAttribute("aria-expanded", "false");
+    button.setAttribute("aria-controls", panelId);
+    setLocalizedAttribute(button, "aria-label", `展开第 ${lineIndex + 1} 句译文与难词`);
+    button.append(
+      makeElement("span", "verse-text", verse),
+      makeElement("span", "verse-expand-mark", "＋"),
+    );
+
+    const panel = makeElement("div", "verse-reading");
+    panel.id = panelId;
+    panel.hidden = true;
+    panel.append(
+      makeElement(
+        "p",
+        "line-translation",
+        poem.translation[lineIndex] || "这一句的对齐译文正在进一步校订中。",
+      ),
+    );
+    const annotations = poem.deepReading.annotations.filter(
+      (annotation) => annotation.line === lineIndex,
+    );
+    if (annotations.length) {
+      const terms = makeElement("dl", "line-annotations");
+      for (const annotation of annotations) {
+        terms.append(
+          makeElement("dt", "", annotation.term),
+          makeElement("dd", "", annotation.gloss),
+        );
+      }
+      panel.append(terms);
+    }
+
+    button.addEventListener("click", () => {
+      const expanded = button.getAttribute("aria-expanded") === "true";
+      button.setAttribute("aria-expanded", String(!expanded));
+      panel.hidden = expanded;
+      setLocalizedText(button.querySelector(".verse-expand-mark"), expanded ? "＋" : "－");
+      setLocalizedAttribute(
+        button,
+        "aria-label",
+        `${expanded ? "展开" : "收起"}第 ${lineIndex + 1} 句译文与难词`,
+      );
+    });
+    study.append(button, panel);
+    verses.append(study);
+  });
   section.append(verses);
   return section;
+}
+
+function createDeepReadingGuide(poem) {
+  const deep = poem.deepReading;
+  const block = makeElement("details", "deep-reading-guide");
+  const summary = makeElement("summary", "deep-reading-summary");
+  summary.append(
+    makeElement("span", "deep-reading-summary-mark", "读"),
+    makeElement("span", "deep-reading-summary-copy", "展开精读导览"),
+    makeElement("span", "deep-reading-summary-hint", "背景 · 诗意 · 转折 · 写法"),
+  );
+
+  const body = makeElement("div", "deep-reading-body");
+  const background = makeElement("section", "deep-background");
+  background.append(
+    makeElement("h2", "", "写作与篇章背景"),
+    makeElement("p", "", deep.background),
+  );
+
+  const guide = makeElement("div", "deep-guide-grid");
+  for (const [label, text] of [
+    ["这首诗写了什么", deep.guide.summary],
+    ["转折在哪里", deep.guide.turn],
+    ["它如何写成", deep.guide.craft],
+  ]) {
+    const card = makeElement("section", "deep-guide-card");
+    card.append(makeElement("h3", "", label), makeElement("p", "", text));
+    guide.append(card);
+  }
+
+  const sourceSection = makeElement("section", "deep-sources");
+  sourceSection.append(makeElement("h2", "", "核对依据"));
+  const sourceList = makeElement("ul", "");
+  for (const sourceId of deep.sourceIds) {
+    const source = state.deepSources.get(sourceId);
+    if (!source) continue;
+    const item = makeElement("li", "");
+    item.append(
+      makeElement("strong", "", source.label),
+      makeElement("span", "", source.detail),
+    );
+    sourceList.append(item);
+  }
+  sourceSection.append(
+    sourceList,
+    makeElement("p", "deep-editorial-note", state.deepEditorialPolicy),
+  );
+  body.append(background, guide, sourceSection);
+  block.append(summary, body);
+  return block;
+}
+
+function formatLearningDate(dateKey) {
+  if (!dateKey) return "完成回想后安排";
+  if (dateKey <= localDateKey()) return "今日应复习";
+  const [, month, day] = dateKey.split("-");
+  return `${Number(month)} 月 ${Number(day)} 日复习`;
+}
+
+function createLearningCard(poem) {
+  const entry = state.learningProgress.poems[poem.id];
+  const counts = learningProgressCounts(state.learningProgress, localDateKey());
+  const due = Boolean(entry?.dueDate && entry.dueDate <= localDateKey());
+  const card = makeElement("section", "learning-card");
+  card.dataset.status = !entry
+    ? "new"
+    : due
+      ? "due"
+      : entry.mastered
+        ? "mastered"
+        : "learning";
+
+  const mark = makeElement("span", "learning-card-mark", entry?.mastered ? "成" : "习");
+  mark.setAttribute("aria-hidden", "true");
+  const copy = makeElement("div", "learning-card-copy");
+  copy.append(
+    makeElement(
+      "strong",
+      "",
+      !entry
+        ? "学会这首"
+        : due
+          ? "今天该回想了"
+          : entry.mastered
+            ? "已进入长期记忆"
+            : "正在形成记忆",
+    ),
+    makeElement(
+      "span",
+      "",
+      entry
+        ? `上次答对 ${Math.round(entry.lastScore * 100)}% · ${formatLearningDate(entry.dueDate)}`
+        : "不看原文逐句补全，完成后自动安排下一次复习",
+    ),
+    makeElement(
+      "small",
+      "",
+      `已开始 ${counts.started} / ${state.reviewCounts.deep} 篇 · 按期全对三次才算掌握${counts.mastered ? ` · 已掌握 ${counts.mastered} 篇` : ""}`,
+    ),
+  );
+  const action = makeElement(
+    "button",
+    "learning-card-action",
+    entry ? (due ? "开始复习" : "再次回想") : "开始回想",
+  );
+  action.type = "button";
+  setLocalizedAttribute(
+    action,
+    "aria-label",
+    `${entry ? "再次回想" : "开始学习"}《${poem.title}》`,
+  );
+  action.addEventListener("click", () => openLearningPractice(poem));
+  card.append(mark, copy, action);
+  return card;
 }
 
 function createTags(poem) {
@@ -1299,15 +1635,29 @@ function renderPoem(poem, options = {}) {
   updateFeedbackLink(poem);
   const article = makeElement("article", "poem");
   article.id = "poem";
-  article.append(makeElement("div", "eyebrow", "此刻遇见"));
+  const hasDeepReading = Boolean(poem.deepReading);
+  article.dataset.depth = hasDeepReading ? "deep" : poem.depthStatus;
+  article.append(
+    makeElement(
+      "div",
+      `eyebrow${hasDeepReading ? " eyebrow-deep" : ""}`,
+      hasDeepReading ? "深度精读 · 人工整理" : "此刻遇见",
+    ),
+  );
 
   const title = makeElement("h1", "poem-title", poem.title);
   if (poem.title.length > 8) title.dataset.longTitle = "true";
   article.append(title, createAuthorLine(poem), createOriginal(poem), createTags(poem));
-  article.append(createTranslation(poem));
+  if (hasDeepReading) {
+    article.append(createDeepReadingGuide(poem), createLearningCard(poem));
+  } else {
+    article.append(createTranslation(poem));
+  }
   article.append(
     createPoemMeta(
-      `完整篇章 · ${poem.source} · 原文共 ${poem.lines.length} 段 · 译文共 ${poem.translation.length} 段`,
+      hasDeepReading
+        ? `精读篇章 · ${poem.source} · ${poem.lines.length} 句对齐译文 · ${poem.deepReading.annotations.length} 条难词点注`
+        : `完整篇章 · ${poem.source} · 原文共 ${poem.lines.length} 段 · 译文共 ${poem.translation.length} 段`,
     ),
   );
 
@@ -1316,22 +1666,32 @@ function renderPoem(poem, options = {}) {
   setLocalizedAttribute(
     elements.readingScroll,
     "aria-label",
-    `${poem.title}，${poem.author}，${poem.translation.length ? "完整原文与译文" : "完整原文，译文待校订"}`,
+    hasDeepReading
+      ? `${poem.title}，${poem.author}，逐句点注与精读导览`
+      : `${poem.title}，${poem.author}，${poem.translation.length ? "完整原文与译文" : "完整原文，译文待校订"}`,
   );
   setLocalizedText(
     elements.folioNo,
     `卷之${String(
       state.index.findIndex((item) => item.id === poem.id) + 1,
-    ).padStart(4, "0")} · 随机诗笺`,
+    ).padStart(4, "0")} · ${hasDeepReading ? "精读诗笺" : "随机诗笺"}`,
   );
   setLocalizedText(elements.bigCharacter, firstHanCharacter(poem.title));
 
   const contextTitle = makeElement("strong", "", poem.form);
   elements.context.replaceChildren(
     contextTitle,
-    localizedTextNode(poem.translation.length ? "原文与译文完整呈现" : "原典全文完整呈现"),
+    localizedTextNode(
+      hasDeepReading
+        ? "深度精读 · 逐句点注"
+        : poem.translation.length
+          ? "原文与译文完整呈现"
+          : "原典全文完整呈现",
+    ),
     document.createElement("br"),
-    localizedTextNode(contextualHint(poem)),
+    localizedTextNode(
+      hasDeepReading ? "轻点诗句读译注，再展开篇章导览" : contextualHint(poem),
+    ),
   );
 
   renderFavorite();
@@ -1350,6 +1710,171 @@ function renderFavorite() {
   elements.favoriteAction.setAttribute("aria-pressed", String(selected));
   elements.favoriteIcon.textContent = selected ? "♥" : "♡";
   setLocalizedText(elements.favoriteLabel, selected ? "已收藏" : "收藏此篇");
+}
+
+function renderRecallStep() {
+  const practice = state.practice;
+  if (!practice) return;
+  const { poem, lineIndex } = practice;
+  const prompt = createRecallPrompt(poem.lines[lineIndex]);
+  practice.prompt = prompt;
+  practice.answered = false;
+
+  elements.learningPractice.hidden = false;
+  elements.learningComplete.hidden = true;
+  setLocalizedText(
+    elements.learningStep,
+    `第 ${lineIndex + 1} / ${poem.lines.length} 句`,
+  );
+  elements.learningProgressTrack.setAttribute(
+    "aria-valuemax",
+    String(poem.lines.length),
+  );
+  elements.learningProgressTrack.setAttribute("aria-valuenow", String(lineIndex));
+  elements.learningProgressFill.style.width = `${(lineIndex / poem.lines.length) * 100}%`;
+  setLocalizedText(elements.learningPrompt, prompt.prompt);
+  elements.learningAnswer.value = "";
+  elements.learningAnswer.disabled = false;
+  setLocalizedAttribute(
+    elements.learningAnswer,
+    "placeholder",
+    `回想“${prompt.prefix}”之后的内容`,
+  );
+  elements.learningResult.hidden = true;
+  elements.learningResult.dataset.correct = "";
+  elements.learningCheck.hidden = false;
+  elements.learningNext.hidden = true;
+  setLocalizedText(
+    elements.learningNext,
+    lineIndex + 1 === poem.lines.length ? "查看结果" : "下一句",
+  );
+  elements.learningAnswer.focus();
+}
+
+function openLearningPractice(poem) {
+  if (!poem?.deepReading || state.busy) return;
+  clearAutoNextTimer();
+  state.practice = {
+    poem,
+    lineIndex: 0,
+    correct: 0,
+    answered: false,
+    prompt: null,
+  };
+  setLocalizedText(elements.learningDialogTitle, `回想《${poem.title}》`);
+  setLocalizedText(
+    elements.learningDialogMeta,
+    `${poem.dynasty} · ${poem.author} · 共 ${poem.lines.length} 句；先回想，再核对。`,
+  );
+  renderRecallStep();
+  elements.learningDialog.showModal();
+}
+
+function checkLearningAnswer() {
+  const practice = state.practice;
+  if (!practice || practice.answered) return;
+  const answer = elements.learningAnswer.value.trim();
+  if (!answer) {
+    elements.learningResult.hidden = false;
+    elements.learningResult.dataset.correct = "false";
+    setLocalizedText(elements.learningResultTitle, "先写下你记得的内容");
+    setLocalizedText(elements.learningResultAnswer, "哪怕只记得几个字，也比直接看答案更有效。");
+    elements.learningAnswer.focus();
+    return;
+  }
+
+  const correct = checkRecallAnswer(
+    TO_SIMPLIFIED(practice.prompt.answer),
+    TO_SIMPLIFIED(answer),
+  );
+  if (correct) practice.correct += 1;
+  practice.answered = true;
+  elements.learningAnswer.disabled = true;
+  elements.learningResult.hidden = false;
+  elements.learningResult.dataset.correct = String(correct);
+  setLocalizedText(
+    elements.learningResultTitle,
+    correct ? "回想正确" : "再看一眼完整诗句",
+  );
+  setLocalizedText(elements.learningResultAnswer, practice.prompt.fullLine);
+  elements.learningCheck.hidden = true;
+  elements.learningNext.hidden = false;
+  elements.learningProgressTrack.setAttribute(
+    "aria-valuenow",
+    String(practice.lineIndex + 1),
+  );
+  elements.learningProgressFill.style.width =
+    `${((practice.lineIndex + 1) / practice.poem.lines.length) * 100}%`;
+  elements.learningNext.focus();
+}
+
+function finishLearningPractice() {
+  const practice = state.practice;
+  if (!practice) return;
+  const total = practice.poem.lines.length;
+  const score = practice.correct / total;
+  elements.learningPractice.hidden = true;
+  elements.learningComplete.hidden = false;
+  setLocalizedText(
+    elements.learningScore,
+    `本轮答对 ${practice.correct} / ${total} 句（${Math.round(score * 100)}%）`,
+  );
+  setLocalizedText(
+    elements.learningRatingHint,
+    score === 1
+      ? "本轮全部回想正确。完成三次按期复习且全对，才会进入“已掌握”。"
+      : score >= 0.6
+        ? "还有句子不够牢；即使选择“已经记住”，也会按“有点模糊”安排复习。"
+        : "这轮回想还不稳定，将在明天重新出现。",
+  );
+  for (const button of elements.learningRatingButtons) {
+    const blocked = button.dataset.learningRating === "good" && score < 1;
+    button.disabled = blocked;
+    if (blocked) {
+      setLocalizedAttribute(button, "title", "全部答对后才能选择已经记住");
+    } else {
+      button.removeAttribute("title");
+    }
+  }
+  elements.learningRatingButtons.find((button) => !button.disabled)?.focus();
+}
+
+function advanceLearningPractice() {
+  const practice = state.practice;
+  if (!practice?.answered) return;
+  if (practice.lineIndex + 1 >= practice.poem.lines.length) {
+    finishLearningPractice();
+    return;
+  }
+  practice.lineIndex += 1;
+  renderRecallStep();
+}
+
+function rateLearningPractice(rating) {
+  const practice = state.practice;
+  if (!practice || elements.learningComplete.hidden) return;
+  state.learningProgress = scheduleLearningReview(
+    state.learningProgress,
+    practice.poem.id,
+    {
+      rating,
+      correct: practice.correct,
+      total: practice.poem.lines.length,
+      todayKey: localDateKey(),
+    },
+  );
+  const entry = state.learningProgress.poems[practice.poem.id];
+  saveLearningProgress();
+  elements.learningDialog.close();
+  if (state.current?.id === practice.poem.id) {
+    renderPoem(state.current, { scroll: false });
+  }
+  renderDailyAction();
+  updateNotice(
+    entry.mastered
+      ? `《${practice.poem.title}》已连续三次全对 · ${formatLearningDate(entry.dueDate)}`
+      : `本轮答对 ${Math.round(entry.lastScore * 100)}% · ${formatLearningDate(entry.dueDate)}`,
+  );
 }
 
 async function loadChunk(chunkName) {
@@ -1379,6 +1904,7 @@ async function expandPoem(meta) {
     lines: Array.isArray(body.lines) ? body.lines : [],
     translation: Array.isArray(body.translation) ? body.translation : [],
     translationMeta: normalizeTranslationMeta(body.translationMeta),
+    deepReading: state.deepReadings.get(meta.id) ?? null,
   };
 }
 
@@ -1509,6 +2035,32 @@ function copyText(poem) {
   if (poem.translation.length) {
     sections.push(`白话译文（${reviewLabel}）\n${poem.translation.join("\n")}`);
   }
+  if (poem.deepReading) {
+    const deep = poem.deepReading;
+    const annotations = deep.annotations
+      .map(
+        (annotation) =>
+          `${poem.lines[annotation.line]}\n- ${annotation.term}：${annotation.gloss}`,
+      )
+      .join("\n");
+    const sourceLabels = deep.sourceIds
+      .map((sourceId) => state.deepSources.get(sourceId)?.label)
+      .filter(Boolean)
+      .join("、");
+    sections.push(
+      [
+        "逐句难词",
+        annotations,
+        "",
+        "精读导览",
+        `背景：${deep.background}`,
+        `这首诗写了什么：${deep.guide.summary}`,
+        `转折在哪里：${deep.guide.turn}`,
+        `它如何写成：${deep.guide.craft}`,
+        `核对依据：${sourceLabels}`,
+      ].join("\n"),
+    );
+  }
   sections.push(
     [
       "资料来源",
@@ -1537,7 +2089,7 @@ async function copyCurrent() {
 }
 
 function normalizeReviewMode(value) {
-  return value === "all" ? "all" : "reviewed";
+  return value === "all" || value === "reviewed" ? value : "deep";
 }
 
 function loadReviewModePreference() {
@@ -1551,7 +2103,7 @@ function loadReviewModePreference() {
       try {
         finish(localStorage.getItem(REVIEW_MODE_KEY));
       } catch {
-        finish("reviewed");
+        finish("deep");
       }
       return;
     }
@@ -1648,6 +2200,45 @@ function saveReadingStats() {
   }
 }
 
+function loadLearningProgress() {
+  return new Promise((resolve) => {
+    const finish = (value) => {
+      state.learningProgress = normalizeLearningProgress(value);
+      resolve();
+    };
+
+    if (!globalThis.chrome?.storage?.local) {
+      try {
+        finish(JSON.parse(localStorage.getItem(LEARNING_PROGRESS_KEY) ?? "null"));
+      } catch {
+        finish(null);
+      }
+      return;
+    }
+
+    chrome.storage.local.get([LEARNING_PROGRESS_KEY], (result) => {
+      finish(result[LEARNING_PROGRESS_KEY]);
+    });
+  });
+}
+
+function saveLearningProgress() {
+  if (globalThis.chrome?.storage?.local) {
+    chrome.storage.local.set({
+      [LEARNING_PROGRESS_KEY]: state.learningProgress,
+    });
+    return;
+  }
+  try {
+    localStorage.setItem(
+      LEARNING_PROGRESS_KEY,
+      JSON.stringify(state.learningProgress),
+    );
+  } catch {
+    // 学习进度仅保存在本机；预览环境禁用存储时，本轮练习仍能完整完成。
+  }
+}
+
 function recordReading(poemId) {
   const result = addReading(state.readingStats, poemId);
   state.readingStats = result.stats;
@@ -1685,7 +2276,6 @@ function toggleFavorite() {
 
 function bindEvents() {
   elements.dailyTrigger.addEventListener("click", openDailyPoem);
-  elements.scriptTrigger.addEventListener("click", toggleScript);
   elements.themeTrigger.addEventListener("click", openThemeDialog);
   elements.themeDialogClose.addEventListener("click", () => elements.themeDialog.close());
   elements.themeDialog.addEventListener("click", (event) => {
@@ -1698,6 +2288,43 @@ function bindEvents() {
   for (const option of elements.themeOptions) {
     option.addEventListener("click", () => {
       applyTheme(option.dataset.themeOption, { persist: true, announce: true });
+    });
+  }
+  for (const option of elements.fontOptions) {
+    option.addEventListener("click", () => {
+      applyFont(option.dataset.fontOption, { persist: true, announce: true });
+    });
+  }
+  for (const option of elements.scriptOptions) {
+    option.addEventListener("click", () => {
+      applyScript(option.dataset.scriptOption, { persist: true, announce: true });
+    });
+  }
+
+  elements.learningDialogClose.addEventListener("click", () => {
+    elements.learningDialog.close();
+  });
+  elements.learningDialog.addEventListener("click", (event) => {
+    if (event.target === elements.learningDialog) elements.learningDialog.close();
+  });
+  elements.learningDialog.addEventListener("close", () => {
+    state.practice = null;
+    scheduleAutoNext();
+    elements.poem
+      .querySelector(".learning-card-action")
+      ?.focus({ preventScroll: true });
+  });
+  elements.learningCheck.addEventListener("click", checkLearningAnswer);
+  elements.learningNext.addEventListener("click", advanceLearningPractice);
+  elements.learningAnswer.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    if (state.practice?.answered) advanceLearningPractice();
+    else checkLearningAnswer();
+  });
+  for (const button of elements.learningRatingButtons) {
+    button.addEventListener("click", () => {
+      rateLearningPractice(button.dataset.learningRating);
     });
   }
 
@@ -1724,7 +2351,7 @@ function bindEvents() {
     resetReadingHistory();
     saveReviewModePreference();
     renderFilters();
-    const rangeName = state.reviewMode === "reviewed" ? "已校精选" : "全库广览";
+    const rangeName = reviewModeLabel();
     showRandom(
       `${rangeName} · 共 ${filteredPoems().length} ${workUnit()}`,
       { recordPrevious: false },
@@ -1856,35 +2483,70 @@ async function initialize() {
   registerReaderPage();
   updateFeedbackLink(null);
   applyTheme(state.theme);
+  applyFont(state.font);
   bindEvents();
   try {
-    const [response, authorResponse] = await Promise.all([
+    const [response, authorResponse, deepResponse] = await Promise.all([
       fetch(`data/poems/index.json?v=${DATA_VERSION}`),
       fetch(`data/authors.json?v=${DATA_VERSION}`),
+      fetch(`data/deep-readings.json?v=${DATA_VERSION}`),
       loadFavorites(),
       loadTheme(),
+      loadFont(),
       loadScriptPreference(),
       loadAutoNextPreference(),
       loadReviewModePreference(),
       loadReadingStats(),
+      loadLearningProgress(),
     ]);
     if (!response.ok) throw new Error(`诗库索引读取失败：${response.status}`);
     if (!authorResponse.ok) throw new Error(`作者资料读取失败：${authorResponse.status}`);
-    const [data, authorData] = await Promise.all([
+    if (!deepResponse.ok) throw new Error(`精读稿读取失败：${deepResponse.status}`);
+    const [data, authorData, deepData] = await Promise.all([
       response.json(),
       authorResponse.json(),
+      deepResponse.json(),
     ]);
     if (!Array.isArray(data.poems) || !data.poems.length) throw new Error("诗库索引为空");
     if (!Array.isArray(authorData.authors) || !authorData.authors.length) {
       throw new Error("作者资料为空");
     }
+    if (!Array.isArray(deepData.poems) || !deepData.poems.length) {
+      throw new Error("精读稿为空");
+    }
+    if (!Array.isArray(deepData.sources) || !deepData.sources.length) {
+      throw new Error("精读核对依据为空");
+    }
 
+    // 必须先建立精读映射，再归一化索引，才能为每篇作品赋予准确的深度层级。
+    state.deepReadings = new Map(
+      deepData.poems.map((reading) => [reading.id, reading]),
+    );
+    state.deepSources = new Map(
+      deepData.sources.map((source) => [source.id, source]),
+    );
+    state.deepEditorialPolicy =
+      typeof deepData.editorialPolicy === "string" ? deepData.editorialPolicy : "";
     state.index = data.poems.map(normalizeMeta);
     state.reviewCounts = {
+      deep: state.index.filter((poem) => poem.depthStatus === "deep").length,
       reviewed: state.index.filter((poem) => poem.reviewStatus === "reviewed").length,
       all: state.index.length,
     };
     state.poemsById = new Map(state.index.map((poem) => [poem.id, poem]));
+    const deepPoemIds = new Set(
+      state.index
+        .filter((poem) => poem.depthStatus === "deep")
+        .map((poem) => poem.id),
+    );
+    state.learningProgress = normalizeLearningProgress({
+      version: 1,
+      poems: Object.fromEntries(
+        Object.entries(state.learningProgress.poems).filter(([id]) =>
+          deepPoemIds.has(id),
+        ),
+      ),
+    });
     state.authors = new Map(
       authorData.authors.map((author) => [
         authorKey(author.dynasty, author.name),
@@ -1897,9 +2559,11 @@ async function initialize() {
     renderFilters();
     await showPoem(
       chooseRandom(filteredPoems()),
-      state.reviewMode === "reviewed"
-        ? `已校精选已展开 · 共 ${state.reviewCounts.reviewed} 篇 · 可切换全库广览`
-        : `全库广览已展开 · 共 ${state.reviewCounts.all} 篇 · 含待校内容`,
+      state.reviewMode === "deep"
+        ? `深度精读已展开 · 共 ${state.reviewCounts.deep} 篇 · 轻点诗句逐句读懂`
+        : state.reviewMode === "reviewed"
+          ? `已校精选已展开 · 共 ${state.reviewCounts.reviewed} 篇`
+          : `全库广览已展开 · 共 ${state.reviewCounts.all} 篇 · 含待校内容`,
     );
   } catch (error) {
     console.error(error);

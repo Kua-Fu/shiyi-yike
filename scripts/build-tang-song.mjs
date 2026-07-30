@@ -17,7 +17,25 @@ const collectionConfigs = [
     period: "唐代",
     category: "唐诗",
     prefix: "additional-tang",
-    target: 500,
+    target: 1000,
+    balancedTarget: 500,
+    // 保留原有 500 首均衡补充卷，再集中扩展名家诗集，兼顾作者广度与代表诗人的作品深度。
+    authorExpansionTargets: [
+      ["李白", 100],
+      ["杜甫", 100],
+      ["白居易", 80],
+      ["李商隐", 45],
+      ["王维", 30],
+      ["李贺", 30],
+      ["柳宗元", 25],
+      ["刘禹锡", 20],
+      ["韩愈", 20],
+      ["高适", 18],
+      ["杜牧", 10],
+      ["岑参", 10],
+      ["韦应物", 10],
+      ["王昌龄", 2],
+    ],
   },
   {
     dynasty: "宋代",
@@ -25,6 +43,8 @@ const collectionConfigs = [
     category: "宋诗",
     prefix: "additional-song",
     target: 500,
+    // 维持已发布宋诗补充卷的选目稳定，本次只扩展唐诗，不替换既有宋诗。
+    excludedIds: ["additional-song-020641"],
   },
 ];
 
@@ -291,6 +311,51 @@ function balancedSelection(candidates, target, existingBodies) {
   return selected;
 }
 
+function authorExpansionSelection(
+  candidates,
+  authorTargets,
+  existingBodies,
+  preservedSelection,
+) {
+  const selected = [];
+  const selectedBodies = preservedSelection.map((candidate) => candidate.normalizedBody);
+  const selectedIds = new Set(
+    preservedSelection.map((candidate) => String(candidate.record.id)),
+  );
+  const selectedTitles = new Set(
+    preservedSelection.map((candidate) =>
+      titleKey(candidate.record.author, candidate.record.title),
+    ),
+  );
+
+  for (const [author, target] of authorTargets) {
+    let authorCount = 0;
+    for (const candidate of candidates) {
+      if (candidate.record.author !== author) continue;
+      if (selectedIds.has(String(candidate.record.id))) continue;
+      const key = titleKey(candidate.record.author, candidate.record.title);
+      if (selectedTitles.has(key)) continue;
+      if (
+        existingBodies.some((body) => bodiesOverlap(body, candidate.normalizedBody)) ||
+        selectedBodies.some((body) => bodiesOverlap(body, candidate.normalizedBody))
+      ) {
+        continue;
+      }
+
+      selected.push(candidate);
+      selectedIds.add(String(candidate.record.id));
+      selectedTitles.add(key);
+      selectedBodies.push(candidate.normalizedBody);
+      authorCount += 1;
+      if (authorCount === target) break;
+    }
+    if (authorCount !== target) {
+      throw new Error(`${author} 去重后仅选出 ${authorCount} 篇，少于扩展目标 ${target} 篇`);
+    }
+  }
+  return selected;
+}
+
 function buildCollection(sourceRecords, basePoems, baseBodies, ciPai, config) {
   const allowedAuthors = new Set(
     basePoems.filter((poem) => poem.period === config.period).map((poem) => poem.author),
@@ -303,6 +368,9 @@ function buildCollection(sourceRecords, basePoems, baseBodies, ciPai, config) {
       (record) =>
         record.dynasty === config.dynasty &&
         allowedAuthors.has(record.author) &&
+        !config.excludedIds?.includes(
+          `${config.prefix}-${String(record.id).padStart(6, "0")}`,
+        ) &&
         isVerseRecord(record) &&
         !isKnownCiTitle(record.title, ciPai) &&
         (config.category !== "宋诗" || isSongPoemTitle(record.title, ciPai)),
@@ -321,7 +389,29 @@ function buildCollection(sourceRecords, basePoems, baseBodies, ciPai, config) {
         !existingTitleKeys.has(titleKey(candidate.record.author, candidate.record.title)),
     );
 
-  const selected = balancedSelection(candidates, config.target, baseBodies);
+  const balancedTarget = config.balancedTarget ?? config.target;
+  const selected = balancedSelection(candidates, balancedTarget, baseBodies);
+  if (config.authorExpansionTargets) {
+    const expansionTarget = config.authorExpansionTargets.reduce(
+      (total, [, count]) => total + count,
+      0,
+    );
+    if (balancedTarget + expansionTarget !== config.target) {
+      throw new Error(
+        `${config.category} 均衡卷与名家扩展卷合计 ${
+          balancedTarget + expansionTarget
+        } 篇，与目标 ${config.target} 篇不一致`,
+      );
+    }
+    selected.push(
+      ...authorExpansionSelection(
+        candidates,
+        config.authorExpansionTargets,
+        baseBodies,
+        selected,
+      ),
+    );
+  }
   const chunks = new Map();
   const poems = selected.map(({ record, lines, translation }, index) => {
     const chunk =
@@ -436,4 +526,4 @@ await fs.writeFile(
   })}\n`,
 );
 
-console.log("✓ 已新增唐诗 500 首、宋诗 500 首，唐宋各收录 1500 首");
+console.log("✓ 已新增唐诗 1000 首、宋诗 500 首；唐诗共 2000 首、宋代诗词共 1704 首");
