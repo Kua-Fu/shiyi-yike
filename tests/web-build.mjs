@@ -14,6 +14,7 @@ assert.equal(build.status, 0, build.stderr || build.stdout);
 
 const siteRoot = path.join(projectRoot, "dist", "site");
 const sourceHtml = fs.readFileSync(path.join(projectRoot, "newtab.html"), "utf8");
+const sourceApp = fs.readFileSync(path.join(projectRoot, "app.js"), "utf8");
 const deployedHtml = fs.readFileSync(path.join(siteRoot, "index.html"), "utf8");
 assert.equal(deployedHtml, sourceHtml, "网页版首页必须与扩展阅读页完全一致");
 
@@ -34,6 +35,26 @@ assert.match(
   responsiveCss,
   /\.secondary-actions \.share-action[\s\S]+min-height: 44px;/,
   "手机端次级操作必须保留足够的触控高度",
+);
+assert.match(
+  sourceHtml,
+  /id="favorite-label-short"[^>]*>收藏</,
+  "窄屏收藏按钮应提供不会折行的短标签",
+);
+assert.match(
+  sourceApp,
+  /document\.addEventListener\("pointerdown"[\s\S]+elements\.libraryPanel\.open = false;/,
+  "覆盖式诗库筛选应支持点击外部关闭",
+);
+assert.match(
+  responsiveCss,
+  /@media \(width <= 700px\) and \(height <= 650px\)[\s\S]+\.share-dialog-copy \{\s+display: none;/,
+  "矮屏手机应优先保证分享海报不变形、不重叠",
+);
+assert.match(
+  responsiveCss,
+  /\.notice\[data-visible="true"\][\s\S]+opacity: 1;/,
+  "手机端操作反馈应使用不占布局高度的短时提示",
 );
 
 for (const requiredEntry of [

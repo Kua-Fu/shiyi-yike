@@ -1620,6 +1620,10 @@ button:focus-visible {
   display: none;
 }
 
+.favorite-label-short {
+  display: none;
+}
+
 /* 商店截图和常见笔记本屏幕多为 1280×800；压缩纵向留白，避免侧栏说明挤到操作区。 */
 @media (height <= 820px) and (width > 1120px) {
   .stage {
@@ -3371,6 +3375,42 @@ button:focus-visible {
   }
 }
 
+/* 搜索入口使用 CSS 线条绘制，避免不同平台把文本符号渲染成尺寸不一的异体字。 */
+.search-trigger-icon,
+.poem-list-search-icon {
+  width: 19px;
+  height: 19px;
+  flex: 0 0 19px;
+  font-size: 0;
+  position: relative;
+}
+
+.search-trigger-icon::before,
+.poem-list-search-icon::before {
+  content: "";
+  width: 11px;
+  height: 11px;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  position: absolute;
+  top: 1px;
+  left: 1px;
+}
+
+.search-trigger-icon::after,
+.poem-list-search-icon::after {
+  content: "";
+  width: 7px;
+  height: 2px;
+  border-radius: 999px;
+  background: currentColor;
+  position: absolute;
+  right: 0;
+  bottom: 2px;
+  transform: rotate(45deg);
+  transform-origin: center;
+}
+
 /* 手机端以“先读诗、再操作”为主：压缩顶栏，把筛选改为浮层，并保留完整触控尺寸。 */
 @media (width <= 650px) {
   body {
@@ -3421,10 +3461,10 @@ button:focus-visible {
   .search-trigger,
   .theme-trigger,
   .filter-favorites {
-    width: 42px;
-    min-width: 42px;
-    min-height: 42px;
-    flex: 0 0 42px;
+    width: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    flex: 0 0 44px;
     padding: 0;
     border: 1px solid var(--line);
     border-radius: 14px;
@@ -3440,10 +3480,6 @@ button:focus-visible {
     height: 23px;
     font-size: 12px;
     line-height: 21px;
-  }
-
-  .search-trigger-icon {
-    font-size: 21px;
   }
 
   .theme-trigger-swatch {
@@ -3549,6 +3585,7 @@ button:focus-visible {
     border: 1px solid var(--line);
     border-radius: 10px;
     grid-column: 1 / -1;
+    align-items: center;
     justify-content: center;
     background: var(--surface);
   }
@@ -3572,6 +3609,24 @@ button:focus-visible {
 
   .reading-scroll {
     scroll-padding-block: 12px 24px;
+  }
+
+  .reading-scroll,
+  .library-panel > .filter-panel,
+  .poem-list,
+  .author-dialog-body,
+  .theme-dialog,
+  .learning-dialog {
+    scrollbar-width: none;
+  }
+
+  .reading-scroll::-webkit-scrollbar,
+  .library-panel > .filter-panel::-webkit-scrollbar,
+  .poem-list::-webkit-scrollbar,
+  .author-dialog-body::-webkit-scrollbar,
+  .theme-dialog::-webkit-scrollbar,
+  .learning-dialog::-webkit-scrollbar {
+    display: none;
   }
 
   .poem {
@@ -3624,9 +3679,16 @@ button:focus-visible {
   }
 
   .side-panel {
-    padding: 10px 0 max(10px, env(safe-area-inset-bottom));
-    background: linear-gradient(180deg, transparent, var(--surface-soft));
-    box-shadow: 0 -12px 28px #2025220c;
+    margin-left: calc(0px - max(16px, env(safe-area-inset-left)));
+    margin-right: calc(0px - max(16px, env(safe-area-inset-right)));
+    padding:
+      10px
+      max(16px, env(safe-area-inset-right))
+      max(10px, env(safe-area-inset-bottom))
+      max(16px, env(safe-area-inset-left));
+    background: color-mix(in srgb, var(--paper) 90%, transparent);
+    backdrop-filter: blur(18px);
+    box-shadow: 0 -12px 28px #20252212;
   }
 
   .actions {
@@ -3657,6 +3719,14 @@ button:focus-visible {
     font-size: 12px;
   }
 
+  .favorite-label-full {
+    display: none;
+  }
+
+  .favorite-label-short {
+    display: inline;
+  }
+
   .secondary-actions {
     grid-column: 1;
     grid-row: 2;
@@ -3674,10 +3744,35 @@ button:focus-visible {
   }
 
   .notice {
-    min-height: 14px;
-    grid-column: 1;
-    grid-row: 3;
-    font-size: 10px;
+    width: max-content;
+    max-width: calc(100% - 16px);
+    min-height: 0;
+    padding: 9px 13px;
+    border: 1px solid color-mix(in srgb, var(--paper) 28%, transparent);
+    border-radius: 999px;
+    color: var(--paper-light);
+    background: color-mix(in srgb, var(--ink) 94%, transparent);
+    box-shadow: 0 10px 26px #20252230;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    pointer-events: none;
+    opacity: 0;
+    position: absolute;
+    right: 0;
+    bottom: calc(100% + 10px);
+    z-index: 4;
+    overflow: hidden;
+    transform: translateY(6px);
+    transition: opacity .18s ease, transform .18s ease;
+  }
+
+  .notice[data-visible="true"] {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .notice-stats {
+    display: none;
   }
 
   .poem-list-header,
@@ -3742,7 +3837,7 @@ button:focus-visible {
   }
 
   .poem-list-item {
-    min-height: 82px;
+    min-height: 100px;
     padding: 13px 14px;
     border-radius: 10px;
   }
@@ -3827,6 +3922,14 @@ button:focus-visible {
     padding-inline: 16px;
   }
 
+  .share-preview canvas {
+    width: auto;
+    height: auto;
+    max-width: min(100%, 300px);
+    max-height: min(100%, 400px);
+    aspect-ratio: 3 / 4;
+  }
+
   .share-dialog-actions {
     padding-inline: 16px;
   }
@@ -3837,6 +3940,145 @@ button:focus-visible {
   select,
   input {
     touch-action: manipulation;
+  }
+}
+
+/* 矮屏手机优先保证海报比例和下载操作，说明文案让位给可用预览空间。 */
+@media (width <= 700px) and (height <= 650px) {
+  .share-dialog-header {
+    min-height: 88px;
+    padding:
+      max(12px, env(safe-area-inset-top))
+      14px
+      11px;
+  }
+
+  .share-dialog-header p {
+    display: none;
+  }
+
+  .share-dialog-body {
+    padding: 10px 14px;
+    grid-template-rows: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  .share-preview {
+    height: 100%;
+    min-height: 0;
+    padding: 8px;
+  }
+
+  .share-preview canvas {
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: 100%;
+    aspect-ratio: 3 / 4;
+  }
+
+  .share-dialog-copy {
+    display: none;
+  }
+
+  .share-dialog-actions {
+    min-height: 64px;
+    padding: 8px 14px max(8px, env(safe-area-inset-bottom));
+  }
+
+  .share-copy-action,
+  .share-download-action {
+    min-height: 48px;
+  }
+}
+
+/* 手机横屏仍按阅读器处理：去掉桌面卷轴边框，并让诗库展开时覆盖正文而非继续压缩高度。 */
+@media (height <= 520px) and (width > 650px) and (width <= 950px) {
+  .stage {
+    height: 100dvh;
+    padding: 0;
+  }
+
+  .scroll {
+    width: 100%;
+    height: 100dvh;
+    padding: 0;
+  }
+
+  .scroll::before,
+  .scroll::after {
+    display: none;
+  }
+
+  .paper {
+    border: 0;
+  }
+
+  .masthead {
+    min-height: 48px;
+    padding: 5px 14px;
+  }
+
+  .brand {
+    gap: 8px;
+  }
+
+  .brand-mark {
+    width: 32px;
+    height: 32px;
+    flex-basis: 32px;
+  }
+
+  .brand-title {
+    font-size: 20px;
+  }
+
+  .daily-trigger,
+  .search-trigger,
+  .theme-trigger,
+  .filter {
+    min-height: 36px;
+  }
+
+  .library-panel {
+    z-index: 12;
+  }
+
+  .library-panel > summary {
+    min-height: 36px;
+    padding-inline: 14px;
+  }
+
+  .library-panel > .filter-panel {
+    max-height: calc(100dvh - 84px);
+    border-bottom: 1px solid var(--line);
+    background: color-mix(in srgb, var(--paper) 95%, transparent);
+    backdrop-filter: blur(18px);
+    box-shadow: 0 18px 34px #20252224;
+    position: absolute;
+    top: 100%;
+    right: 0;
+    left: 0;
+    overflow: hidden auto;
+  }
+
+  .content {
+    padding: 9px 14px 0;
+    gap: 5px;
+  }
+
+  .reading-scroll,
+  .library-panel > .filter-panel {
+    scrollbar-width: none;
+  }
+
+  .reading-scroll::-webkit-scrollbar,
+  .library-panel > .filter-panel::-webkit-scrollbar {
+    display: none;
+  }
+
+  .side-panel {
+    padding: 5px 0 9px;
   }
 }
 

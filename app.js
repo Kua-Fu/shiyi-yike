@@ -99,11 +99,13 @@ const state = {
   searchRequestId: 0,
   requestId: 0,
   busy: false,
+  ready: false,
   autoNextSeconds: DEFAULT_AUTO_NEXT_SECONDS,
   autoNextTimer: null,
   autoNextProgressTimer: null,
   autoNextStartedAt: null,
   autoNextDeadline: null,
+  noticeDismissTimer: null,
   sharePosterPoemId: null,
 };
 
@@ -120,6 +122,7 @@ const elements = {
   dailyTrigger: document.querySelector("#daily-trigger"),
   dailyTriggerMark: document.querySelector("#daily-trigger-mark"),
   dailyTriggerName: document.querySelector("#daily-trigger-name"),
+  libraryPanel: document.querySelector("#library-panel"),
   librarySummary: document.querySelector("#library-summary"),
   reviewModeSelect: document.querySelector("#review-mode-select"),
   periodSelect: document.querySelector("#period-select"),
@@ -139,6 +142,7 @@ const elements = {
   favoriteAction: document.querySelector("#favorite-action"),
   favoriteIcon: document.querySelector("#favorite-icon"),
   favoriteLabel: document.querySelector("#favorite-label"),
+  favoriteLabelShort: document.querySelector("#favorite-label-short"),
   nextAction: document.querySelector("#next-action"),
   nextLabel: document.querySelector("#next-label"),
   previousAction: document.querySelector("#previous-action"),
@@ -1003,7 +1007,25 @@ function updateNotice(message) {
     ? ` · 今日 ${state.readingStats.days[todayKey] ?? 0} 篇 · 连续 ${readingStreak(state.readingStats, todayKey)} 天`
     : "";
   const favoriteSummary = state.index.length ? ` · 已藏 ${state.favorites.size} 篇` : "";
-  setLocalizedText(elements.notice, `${message}${readingSummary}${favoriteSummary}`);
+  const messageNode = makeElement("span", "notice-message", message);
+  const statsNode = makeElement(
+    "span",
+    "notice-stats",
+    `${readingSummary}${favoriteSummary}`,
+  );
+  elements.notice.replaceChildren(messageNode, statsNode);
+
+  // 手机端把状态栏改成短时浮层，避免它长期占用本就有限的正文高度。
+  if (!state.ready) {
+    delete elements.notice.dataset.visible;
+    return;
+  }
+  elements.notice.dataset.visible = "true";
+  if (state.noticeDismissTimer) clearTimeout(state.noticeDismissTimer);
+  state.noticeDismissTimer = window.setTimeout(() => {
+    delete elements.notice.dataset.visible;
+    state.noticeDismissTimer = null;
+  }, 2400);
 }
 
 function currentFilterSummary() {
@@ -1723,8 +1745,16 @@ function renderPoem(poem, options = {}) {
 function renderFavorite() {
   const selected = Boolean(state.current && state.favorites.has(state.current.id));
   elements.favoriteAction.setAttribute("aria-pressed", String(selected));
+  setLocalizedAttribute(
+    elements.favoriteAction,
+    "aria-label",
+    state.current
+      ? `${selected ? "取消收藏" : "收藏"}《${state.current.title}》`
+      : "收藏当前诗词",
+  );
   elements.favoriteIcon.textContent = selected ? "♥" : "♡";
   setLocalizedText(elements.favoriteLabel, selected ? "已收藏" : "收藏此篇");
+  setLocalizedText(elements.favoriteLabelShort, selected ? "已藏" : "收藏");
 }
 
 function renderRecallStep() {
@@ -2442,6 +2472,18 @@ function toggleFavorite() {
 }
 
 function bindEvents() {
+  // 诗库在手机端是覆盖式浮层；点击页面其余区域或按 Esc 都应自然收起。
+  document.addEventListener("pointerdown", (event) => {
+    if (
+      !matchMedia("(max-width: 650px)").matches ||
+      !elements.libraryPanel.open ||
+      elements.libraryPanel.contains(event.target)
+    ) {
+      return;
+    }
+    elements.libraryPanel.open = false;
+  });
+
   elements.dailyTrigger.addEventListener("click", openDailyPoem);
   elements.themeTrigger.addEventListener("click", openThemeDialog);
   elements.themeDialogClose.addEventListener("click", () => elements.themeDialog.close());
@@ -2571,7 +2613,10 @@ function bindEvents() {
     );
   });
 
-  elements.resultTrigger.addEventListener("click", openPoemList);
+  elements.resultTrigger.addEventListener("click", () => {
+    elements.libraryPanel.open = false;
+    openPoemList();
+  });
   elements.poemListClose.addEventListener("click", () => elements.poemListDialog.close());
   elements.poemListSearch.addEventListener("input", renderPoemList);
   elements.poemListDialog.addEventListener("click", (event) => {
@@ -2628,6 +2673,17 @@ function bindEvents() {
 
   document.addEventListener("keydown", (event) => {
     const target = event.target;
+    if (
+      event.key === "Escape" &&
+      matchMedia("(max-width: 650px)").matches &&
+      elements.libraryPanel.open &&
+      !document.querySelector("dialog[open]")
+    ) {
+      event.preventDefault();
+      elements.libraryPanel.open = false;
+      elements.librarySummary.focus({ preventScroll: true });
+      return;
+    }
     const isFormControl =
       target instanceof HTMLInputElement ||
       target instanceof HTMLSelectElement ||
@@ -2752,9 +2808,11 @@ async function initialize() {
           ? `已校精选已展开 · 共 ${state.reviewCounts.reviewed} 篇`
           : `全库广览已展开 · 共 ${state.reviewCounts.all} 篇 · 含待校内容`,
     );
+    state.ready = true;
   } catch (error) {
     console.error(error);
     setBusy(false);
+    state.ready = true;
     updateNotice("诗库暂未能展开，请重新打开此页");
   }
 }
