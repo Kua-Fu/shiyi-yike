@@ -41,12 +41,12 @@
           </header>
 
           <details id="library-panel" class="library-panel">
-            <summary id="library-summary">诗库 · 深度精读 50 篇</summary>
+            <summary id="library-summary">诗库 · 深度精读 100 篇</summary>
             <section class="filter-panel" aria-label="选择诗库范围，并按朝代、作者和标签筛选">
               <label class="select-field select-field-scope">
                 <span id="review-mode-label">范围</span>
                 <select id="review-mode-select" aria-labelledby="review-mode-label" disabled>
-                  <option value="deep" selected>深度精读（50）</option>
+                  <option value="deep" selected>深度精读（100）</option>
                   <option value="reviewed">已校精选（938）</option>
                   <option value="all">全库广览（5334）</option>
                 </select>
@@ -92,7 +92,7 @@
                 <div class="author-line"><span>古今</span><span aria-hidden="true">·</span><span>无界</span></div>
                 <section class="original" aria-label="诗词原文">
                   <div class="section-kicker">原文</div>
-                  <div class="verses"><p class="verse">正在展开五十篇深度精读诗词……</p></div>
+                  <div class="verses"><p class="verse">正在展开一百篇深度精读诗词……</p></div>
                 </section>
                 <div class="poem-meta-row">
                   <p class="note">资料来源与篇章信息正在准备中</p>
@@ -131,15 +131,19 @@
                     <span class="copy-label-full">复制全文</span>
                     <span class="copy-label-short">复制</span>
                   </button>
+                  <button id="share-action" class="share-action" type="button" aria-haspopup="dialog" aria-controls="share-dialog" disabled>
+                    <span class="share-label-full">分享诗笺</span>
+                    <span class="share-label-short">分享</span>
+                  </button>
                 </div>
-                <div id="notice" class="notice" role="status" aria-live="polite">正在展开五十篇深度精读诗词…</div>
+                <div id="notice" class="notice" role="status" aria-live="polite">正在展开一百篇深度精读诗词…</div>
               </div>
             </aside>
           </div>
 
           <footer class="footer">
             <span class="footer-flourish" aria-hidden="true"></span>
-            <span>默认五十篇深度精读，诗库另收九百三十八篇已校精选与五千三百三十四篇全库</span>
+            <span>默认一百篇深度精读，诗库另收九百三十八篇已校精选与五千三百三十四篇全库</span>
             <span class="footer-shortcuts" aria-label="快捷键：D 今日诗签，S 搜索，T 外观，左方向键上一篇，空格键或右方向键换一篇，F 收藏，C 复制">D 今日诗签 · S 搜索 · T 外观 · ← 上一篇 · 空格 / → 换一篇 · F 收藏 · C 复制</span>
             <span class="footer-flourish" aria-hidden="true"></span>
           </footer>
@@ -351,6 +355,39 @@
             </span>
           </label>
         </section>
+      </section>
+    </dialog>
+
+    <dialog id="share-dialog" class="share-dialog" aria-labelledby="share-dialog-title">
+      <section class="share-dialog-shell">
+        <header class="share-dialog-header">
+          <div>
+            <div class="share-dialog-kicker">一诗一笺</div>
+            <h2 id="share-dialog-title">生成诗词分享图</h2>
+            <p>图片会携带可识别本篇诗词的二维码，全程在本机生成</p>
+          </div>
+          <button id="share-dialog-close" class="share-dialog-close" type="button" aria-label="关闭分享面板">×</button>
+        </header>
+        <div class="share-dialog-body">
+          <div class="share-preview">
+            <canvas id="share-canvas" width="1080" height="1440" aria-label="当前诗词的分享图片预览"></canvas>
+            <div id="share-loading" class="share-loading" role="status" aria-live="polite">正在铺开诗笺…</div>
+          </div>
+          <div class="share-dialog-copy">
+            <span class="share-dialog-mark" aria-hidden="true">诗</span>
+            <div>
+              <h3>把这一刻，送给同样爱诗的人</h3>
+              <p id="share-dialog-status">生成后可复制图片，或下载高清 PNG 再分享到任意应用。</p>
+            </div>
+          </div>
+        </div>
+        <footer class="share-dialog-actions">
+          <button id="share-copy-action" class="share-copy-action" type="button" disabled>复制图片</button>
+          <button id="share-download-action" class="share-download-action" type="button" disabled>
+            <span id="share-download-label">下载高清图片</span>
+            <span aria-hidden="true">↓</span>
+          </button>
+        </footer>
       </section>
     </dialog>
 

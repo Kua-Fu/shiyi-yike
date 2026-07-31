@@ -10,7 +10,7 @@ const readJson = (relativePath) =>
 
 const manifest = readJson("manifest.json");
 assert.equal(manifest.manifest_version, 3, "扩展必须使用 Manifest V3");
-assert.equal(manifest.version, "1.14.0");
+assert.equal(manifest.version, "1.15.0");
 assert.equal(
   manifest.chrome_url_overrides,
   undefined,
@@ -27,6 +27,7 @@ const requiredFiles = [
   "newtab.html",
   manifest.background.service_worker,
   "app.js",
+  "share-poster.js",
   "reading-insights.js",
   "learning-progress.js",
   "styles.css",
@@ -37,6 +38,9 @@ const requiredFiles = [
   "vendor/opencc-js/full.js",
   "vendor/opencc-js/LICENSE",
   "vendor/opencc-js/THIRD_PARTY_LICENSES.md",
+  "vendor/qrcode-generator/qrcode.mjs",
+  "vendor/qrcode-generator/qrcode_UTF8.mjs",
+  "vendor/qrcode-generator/LICENSE",
   ...Object.values(manifest.icons),
 ];
 for (const relativePath of requiredFiles) {
@@ -524,8 +528,8 @@ assert.doesNotMatch(newTabHtml, /https?:\/\//, "新标签页不应依赖远程�
 assert.match(newTabHtml, /id="review-mode-select"/, "筛选区应提供校订范围选择");
 assert.match(
   newTabHtml,
-  /<option value="deep" selected>深度精读（50）<\/option>/,
-  "阅读范围应默认选择 50 篇深度精读",
+  /<option value="deep" selected>深度精读（100）<\/option>/,
+  "阅读范围应默认选择 100 篇深度精读",
 );
 assert.match(newTabHtml, /id="library-panel"/, "完整筛选应收进次级诗库抽屉");
 assert.match(newTabHtml, /id="library-summary"/, "诗库抽屉应显示当前范围摘要");
@@ -582,6 +586,11 @@ assert.ok(
 );
 assert.match(newTabHtml, /id="auto-next-progress"/, "开启自动下一首后应显示进度条");
 assert.match(newTabHtml, /id="previous-action"/, "阅读操作区应提供上一篇入口");
+assert.match(newTabHtml, /id="share-action"/, "阅读操作区应提供分享诗笺入口");
+assert.match(newTabHtml, /id="share-dialog"/, "应提供诗词分享图片预览面板");
+assert.match(newTabHtml, /id="share-canvas"/, "分享面板应提供高清图片画布");
+assert.match(newTabHtml, /id="share-copy-action"/, "分享面板应支持复制图片");
+assert.match(newTabHtml, /id="share-download-action"/, "分享面板应支持分享或下载图片");
 assert.match(newTabHtml, /D 今日诗签/, "页面应说明今日诗签快捷键");
 assert.match(
   newTabHtml,
@@ -868,7 +877,7 @@ assert.deepEqual(licenseAudit.reviewCounts, {
   total: 5334,
 });
 assert.equal(licenseAudit.releasePolicy.defaultReviewMode, "deep");
-assert.equal(licenseAudit.releasePolicy.deepReadingCount, 50);
+assert.equal(licenseAudit.releasePolicy.deepReadingCount, 100);
 assert.equal(licenseAudit.releasePolicy.deepReadingUsesOriginalEditorialText, true);
 assert.equal(licenseAudit.releasePolicy.fullLibraryRequiresExplicitOptIn, true);
 assert.equal(licenseAudit.releasePolicy.copyIncludesSourceAndReviewStatus, true);
@@ -887,6 +896,7 @@ assert.equal(packageData.version, manifest.version, "npm 包版本与扩展版�
 for (const script of [
   "build:review",
   "build:store-assets",
+  "build:web",
   "package:extension",
   "release:prepare",
 ]) {
@@ -895,10 +905,15 @@ for (const script of [
 for (const releaseScript of [
   "scripts/build-review-metadata.mjs",
   "scripts/build-store-assets.mjs",
+  "scripts/build-web.mjs",
   "scripts/package-extension.mjs",
 ]) {
   assert.ok(fs.existsSync(path.join(projectRoot, releaseScript)), `缺少发布流程文件：${releaseScript}`);
 }
+assert.ok(
+  fs.existsSync(path.join(projectRoot, ".github/workflows/pages.yml")),
+  "缺少 GitHub Pages 自动发布流程",
+);
 
 const extensionStyles = fs.readFileSync(path.join(projectRoot, "extension.css"), "utf8");
 assert.match(extensionStyles, /height <= 820px/, "应适配商店截图常用的 1280×800 视口");
@@ -933,5 +948,5 @@ assert.equal(toTraditional("明月几时有，把酒问青天"), "明月幾時�
 assert.equal(toSimplified("明月幾時有，把酒問青天"), "明月几时有，把酒问青天");
 
 console.log(
-  `✓ Manifest V3、入口复用、50 篇深度精读、全文搜索、${authorData.counts.total} 位作者简介及 5334 篇诗词数据均通过校验`,
+  `✓ Manifest V3、入口复用、100 篇深度精读、全文搜索、${authorData.counts.total} 位作者简介及 5334 篇诗词数据均通过校验`,
 );

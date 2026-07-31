@@ -13,8 +13,12 @@ import {
   normalizeLearningProgress,
   scheduleLearningReview,
 } from "./learning-progress.js";
+import {
+  buildShareFileName,
+  createSharePoster,
+} from "./share-poster.js";
 
-const DATA_VERSION = "1.14.0";
+const DATA_VERSION = "1.15.0";
 const FAVORITES_KEY = "poem-favorites-v2";
 const THEME_KEY = "poem-theme-v1";
 const FONT_KEY = "poem-font-v1";
@@ -84,7 +88,7 @@ const state = {
   theme: "xuan",
   font: "default",
   script: "simplified",
-  noticeMessage: "正在展开五十篇深度精读诗词…",
+  noticeMessage: "正在展开一百篇深度精读诗词…",
   emptyCollection: false,
   favorites: new Set(),
   readingStats: normalizeReadingStats(null),
@@ -100,6 +104,7 @@ const state = {
   autoNextProgressTimer: null,
   autoNextStartedAt: null,
   autoNextDeadline: null,
+  sharePosterPoemId: null,
 };
 
 const elements = {
@@ -144,6 +149,15 @@ const elements = {
   autoNextProgressFill: document.querySelector("#auto-next-progress-fill"),
   autoNextRemaining: document.querySelector("#auto-next-remaining"),
   copyAction: document.querySelector("#copy-action"),
+  shareAction: document.querySelector("#share-action"),
+  shareDialog: document.querySelector("#share-dialog"),
+  shareDialogClose: document.querySelector("#share-dialog-close"),
+  shareCanvas: document.querySelector("#share-canvas"),
+  shareLoading: document.querySelector("#share-loading"),
+  shareDialogStatus: document.querySelector("#share-dialog-status"),
+  shareCopyAction: document.querySelector("#share-copy-action"),
+  shareDownloadAction: document.querySelector("#share-download-action"),
+  shareDownloadLabel: document.querySelector("#share-download-label"),
   notice: document.querySelector("#notice"),
   poemListDialog: document.querySelector("#poem-list-dialog"),
   poemListTitle: document.querySelector("#poem-list-title"),
@@ -975,6 +989,7 @@ function setBusy(busy) {
   elements.favoriteAction.disabled = busy || !state.current;
   elements.nextAction.disabled = busy || !filteredPoems().length;
   elements.copyAction.disabled = busy || !state.current;
+  elements.shareAction.disabled = busy || !state.current;
   renderPreviousAction();
   setLocalizedText(elements.nextLabel, busy ? "展开中…" : `下一${workUnit()}`);
   if (busy) clearAutoNextTimer();
@@ -2088,6 +2103,158 @@ async function copyCurrent() {
   }
 }
 
+function shareAppearance() {
+  const styles = getComputedStyle(document.documentElement);
+  return {
+    paper: styles.getPropertyValue("--paper"),
+    paperDeep: styles.getPropertyValue("--paper-deep"),
+    ink: styles.getPropertyValue("--ink"),
+    inkSoft: styles.getPropertyValue("--ink-soft"),
+    line: styles.getPropertyValue("--line"),
+    accent: styles.getPropertyValue("--cinnabar"),
+    moss: styles.getPropertyValue("--moss"),
+    serif: styles.getPropertyValue("--serif"),
+    kai: styles.getPropertyValue("--kai"),
+  };
+}
+
+function localizedSharePoem(poem) {
+  return {
+    ...poem,
+    title: displayText(poem.title),
+    dynasty: displayText(dynastyLabel(poem.dynasty)),
+    author: displayText(poem.author),
+    lines: poem.lines.map(displayText),
+  };
+}
+
+function shareCanvasBlob() {
+  return new Promise((resolve, reject) => {
+    elements.shareCanvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error("图片导出失败"));
+    }, "image/png");
+  });
+}
+
+function canSharePosterFile() {
+  if (!globalThis.File || !navigator.share || !navigator.canShare) return false;
+  try {
+    const probe = new File([""], "诗意一刻.png", { type: "image/png" });
+    return navigator.canShare({ files: [probe] });
+  } catch {
+    return false;
+  }
+}
+
+async function openShareDialog() {
+  if (!state.current) return;
+  clearAutoNextTimer();
+  const poem = state.current;
+  state.sharePosterPoemId = null;
+  elements.shareLoading.hidden = false;
+  elements.shareCopyAction.disabled = true;
+  elements.shareDownloadAction.disabled = true;
+  setLocalizedText(elements.shareDialogStatus, "正在生成高清诗笺与二维码…");
+  setLocalizedText(
+    elements.shareDownloadLabel,
+    canSharePosterFile() ? "分享图片" : "下载高清图片",
+  );
+  if (!elements.shareDialog.open) elements.shareDialog.showModal();
+
+  try {
+    if (document.fonts?.ready) await document.fonts.ready;
+    createSharePoster(
+      elements.shareCanvas,
+      localizedSharePoem(poem),
+      shareAppearance(),
+    );
+    if (!elements.shareDialog.open || state.current?.id !== poem.id) return;
+    state.sharePosterPoemId = poem.id;
+    elements.shareLoading.hidden = true;
+    elements.shareCopyAction.disabled = false;
+    elements.shareDownloadAction.disabled = false;
+    setLocalizedText(
+      elements.shareDialogStatus,
+      "高清 PNG 已生成；二维码包含本篇题目、作者、诗句节选与项目入口。",
+    );
+    elements.shareDownloadAction.focus({ preventScroll: true });
+  } catch (error) {
+    console.error(error);
+    elements.shareLoading.hidden = true;
+    setLocalizedText(elements.shareDialogStatus, "诗笺生成未成功，请关闭后再试一次。");
+  }
+}
+
+async function copySharePoster() {
+  if (!state.current || state.sharePosterPoemId !== state.current.id) return;
+  if (!navigator.clipboard?.write || !globalThis.ClipboardItem) {
+    setLocalizedText(
+      elements.shareDialogStatus,
+      "当前浏览器暂不支持复制图片，请使用“下载高清图片”。",
+    );
+    return;
+  }
+  try {
+    const blob = await shareCanvasBlob();
+    await navigator.clipboard.write([
+      new ClipboardItem({ "image/png": blob }),
+    ]);
+    setLocalizedText(elements.shareDialogStatus, "图片已复制，可直接粘贴到聊天或笔记中。");
+  } catch (error) {
+    console.error(error);
+    setLocalizedText(
+      elements.shareDialogStatus,
+      "图片复制未成功，请改用“下载高清图片”。",
+    );
+  }
+}
+
+function downloadShareBlob(blob, fileName) {
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = objectUrl;
+  link.download = fileName;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(objectUrl), 1_000);
+}
+
+async function shareOrDownloadPoster() {
+  if (!state.current || state.sharePosterPoemId !== state.current.id) return;
+  try {
+    const localizedPoem = localizedSharePoem(state.current);
+    const blob = await shareCanvasBlob();
+    const fileName = buildShareFileName(localizedPoem);
+    if (canSharePosterFile()) {
+      const file = new File([blob], fileName, { type: "image/png" });
+      try {
+        await navigator.share({
+          files: [file],
+          title: `《${localizedPoem.title}》· 诗意一刻`,
+          text: `${localizedPoem.dynasty} · ${localizedPoem.author}`,
+        });
+        setLocalizedText(elements.shareDialogStatus, "分享面板已打开。");
+        return;
+      } catch (error) {
+        if (error?.name === "AbortError") return;
+        // 某些桌面环境声明支持文件分享却无法唤起面板，此时仍交付可用的高清图片。
+      }
+    }
+    downloadShareBlob(blob, fileName);
+    setLocalizedText(
+      elements.shareDialogStatus,
+      canSharePosterFile()
+        ? "系统分享暂不可用，已改为下载高清图片。"
+        : "高清图片已下载。",
+    );
+  } catch (error) {
+    console.error(error);
+    setLocalizedText(elements.shareDialogStatus, "图片分享未成功，请稍后重试。");
+  }
+}
+
 function normalizeReviewMode(value) {
   return value === "all" || value === "reviewed" ? value : "deep";
 }
@@ -2444,6 +2611,20 @@ function bindEvents() {
   });
   elements.favoriteAction.addEventListener("click", toggleFavorite);
   elements.copyAction.addEventListener("click", copyCurrent);
+  elements.shareAction.addEventListener("click", openShareDialog);
+  elements.shareDialogClose.addEventListener("click", () => elements.shareDialog.close());
+  elements.shareDialog.addEventListener("click", (event) => {
+    if (event.target === elements.shareDialog) elements.shareDialog.close();
+  });
+  elements.shareDialog.addEventListener("close", () => {
+    state.sharePosterPoemId = null;
+    scheduleAutoNext();
+    if (!elements.shareAction.disabled) {
+      elements.shareAction.focus({ preventScroll: true });
+    }
+  });
+  elements.shareCopyAction.addEventListener("click", copySharePoster);
+  elements.shareDownloadAction.addEventListener("click", shareOrDownloadPoster);
 
   document.addEventListener("keydown", (event) => {
     const target = event.target;
@@ -2452,7 +2633,13 @@ function bindEvents() {
       target instanceof HTMLSelectElement ||
       target instanceof HTMLTextAreaElement ||
       target instanceof HTMLButtonElement;
-    if (isFormControl || event.metaKey || event.ctrlKey || event.altKey) return;
+    if (
+      isFormControl ||
+      document.querySelector("dialog[open]") ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.altKey
+    ) return;
 
     if (event.code === "Space" || event.code === "ArrowRight") {
       event.preventDefault();

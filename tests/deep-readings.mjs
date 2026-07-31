@@ -13,16 +13,16 @@ const indexById = new Map(index.poems.map((poem) => [poem.id, poem]));
 const sourceById = new Map(deepData.sources.map((source) => [source.id, source]));
 const chunkCache = new Map();
 
-assert.equal(deepData.version, "1.0.0");
+assert.equal(deepData.version, "1.1.0");
 assert.match(
   deepData.editorialPolicy,
   /原创精读稿/,
   "精读数据必须明确说明内容是项目原创整理",
 );
-assert.equal(deepData.poems.length, 50, "P0 首批精读层应固定为 50 篇");
+assert.equal(deepData.poems.length, 100, "深度精读层应固定为 100 篇");
 assert.equal(
   new Set(deepData.poems.map((poem) => poem.id)).size,
-  50,
+  100,
   "精读作品 ID 不得重复",
 );
 assert.equal(sourceById.size, deepData.sources.length, "精读核对依据 ID 不得重复");
@@ -83,8 +83,8 @@ for (const reading of deepData.poems) {
 
 assert.deepEqual(
   Object.fromEntries(periodCounts),
-  { 唐代: 40, 宋代: 10 },
-  "首批精读应由 40 首唐诗与 10 首宋词组成",
+  { 唐代: 80, 宋代: 20 },
+  "精读层应由 80 首唐诗与 20 首宋词组成",
 );
 
-console.log("✓ 50 篇深度精读、逐句对齐、难词点注与核对依据均通过校验");
+console.log("✓ 100 篇深度精读、逐句对齐、难词点注与核对依据均通过校验");

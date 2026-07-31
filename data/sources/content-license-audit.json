@@ -1,6 +1,6 @@
 {
-  "auditDate": "2026-07-30",
-  "releaseVersion": "1.14.0",
+  "auditDate": "2026-07-31",
+  "releaseVersion": "1.15.0",
   "disclaimer": "Engineering provenance record; not legal advice. Editorial review status is not copyright clearance.",
   "reviewCounts": {
     "reviewed": 938,
@@ -10,7 +10,7 @@
   },
   "releasePolicy": {
     "defaultReviewMode": "deep",
-    "deepReadingCount": 50,
+    "deepReadingCount": 100,
     "deepReadingUsesOriginalEditorialText": true,
     "fullLibraryRequiresExplicitOptIn": true,
     "copyIncludesSourceAndReviewStatus": true
@@ -18,7 +18,7 @@
   "sources": [
     {
       "id": "project-original-deep-readings",
-      "records": 50,
+      "records": 100,
       "sourceFile": "data/deep-readings.json",
       "distributionStatus": "project-original-editorial-text"
     },
