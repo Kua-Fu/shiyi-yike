@@ -21,6 +21,7 @@ const runtimeEntries = [
   "vendor/qrcode-generator/qrcode_UTF8.mjs",
   "data/authors.json",
   "data/deep-readings.json",
+  "data/poems/startup.json",
   "data/poems/index.json",
   "data/poems/search.json",
   "data/poems/chunks",

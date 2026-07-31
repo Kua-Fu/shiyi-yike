@@ -13,10 +13,6 @@ import {
   normalizeLearningProgress,
   scheduleLearningReview,
 } from "./learning-progress.js";
-import {
-  buildShareFileName,
-  createSharePoster,
-} from "./share-poster.js";
 
 const DATA_VERSION = "1.15.0";
 const FAVORITES_KEY = "poem-favorites-v2";
@@ -52,21 +48,58 @@ const FONTS = new Map([
   ["xingshu", { name: "行书逸韵" }],
 ]);
 // 诗库只保留一份简体源数据：展示时转为繁体，搜索时再归一化为简体，避免维护两套正文。
-const OPENCC = globalThis.OpenCC;
-const TO_TRADITIONAL = OPENCC?.Converter
-  ? OPENCC.Converter({ from: "cn", to: "tw" })
-  : (value) => String(value);
-const TO_SIMPLIFIED = OPENCC?.Converter
-  ? OPENCC.Converter({ from: "tw", to: "cn" })
-  : (value) => String(value);
-const STATIC_SCRIPT_CONVERTER = OPENCC?.HTMLConverter
-  ? OPENCC.HTMLConverter(
-      TO_TRADITIONAL,
-      document.documentElement,
-      "zh-CN",
-      "zh-Hant",
-    )
-  : { convert() {}, restore() {} };
+let TO_TRADITIONAL = (value) => String(value);
+let TO_SIMPLIFIED = (value) => String(value);
+let STATIC_SCRIPT_CONVERTER = { convert() {}, restore() {} };
+let openCCPromise = null;
+let sharePosterModulePromise = null;
+
+function loadOpenCC() {
+  if (globalThis.OpenCC?.Converter) return Promise.resolve(globalThis.OpenCC);
+  if (!openCCPromise) {
+    openCCPromise = new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = `vendor/opencc-js/full.js?v=${DATA_VERSION}`;
+      script.async = true;
+      script.addEventListener("load", () => resolve(globalThis.OpenCC), { once: true });
+      script.addEventListener(
+        "error",
+        () => {
+          script.remove();
+          reject(new Error("繁简转换组件加载失败"));
+        },
+        { once: true },
+      );
+      document.head.append(script);
+    }).then((openCC) => {
+      if (!openCC?.Converter) throw new Error("繁简转换组件不可用");
+      TO_TRADITIONAL = openCC.Converter({ from: "cn", to: "tw" });
+      TO_SIMPLIFIED = openCC.Converter({ from: "tw", to: "cn" });
+      STATIC_SCRIPT_CONVERTER = openCC.HTMLConverter(
+        TO_TRADITIONAL,
+        document.documentElement,
+        "zh-CN",
+        "zh-Hant",
+      );
+      return openCC;
+    }).catch((error) => {
+      // 移动网络偶发失败后允许用户再次切换重试，不把失败 Promise 永久缓存。
+      openCCPromise = null;
+      throw error;
+    });
+  }
+  return openCCPromise;
+}
+
+function loadSharePosterModule() {
+  if (!sharePosterModulePromise) {
+    sharePosterModulePromise = import("./share-poster.js").catch((error) => {
+      sharePosterModulePromise = null;
+      throw error;
+    });
+  }
+  return sharePosterModulePromise;
+}
 
 const state = {
   index: [],
@@ -100,6 +133,9 @@ const state = {
   requestId: 0,
   busy: false,
   ready: false,
+  libraryReady: false,
+  libraryPromise: null,
+  authorsPromise: null,
   autoNextSeconds: DEFAULT_AUTO_NEXT_SECONDS,
   autoNextTimer: null,
   autoNextProgressTimer: null,
@@ -385,8 +421,9 @@ function refreshLocalizedSurface() {
   updateNotice(state.noticeMessage);
 }
 
-function applyScript(scriptId, options = {}) {
+async function applyScript(scriptId, options = {}) {
   const normalizedScript = scriptId === "traditional" ? "traditional" : "simplified";
+  if (normalizedScript === "traditional") await loadOpenCC();
   const changed = normalizedScript !== state.script;
   state.script = normalizedScript;
 
@@ -411,8 +448,13 @@ function applyScript(scriptId, options = {}) {
 
 function loadScriptPreference() {
   return new Promise((resolve) => {
-    const finish = (scriptId) => {
-      applyScript(scriptId === "traditional" ? "traditional" : "simplified");
+    const finish = async (scriptId) => {
+      try {
+        await applyScript(scriptId === "traditional" ? "traditional" : "simplified");
+      } catch (error) {
+        console.error(error);
+        await applyScript("simplified");
+      }
       resolve();
     };
 
@@ -982,13 +1024,16 @@ function rememberRecentlyRead(poemId) {
 function setBusy(busy) {
   state.busy = busy;
   elements.readingScroll.setAttribute("aria-busy", String(busy));
-  for (const control of elements.categoryButtons) control.disabled = busy || !state.index.length;
-  elements.reviewModeSelect.disabled = busy || !state.index.length;
-  elements.periodSelect.disabled = busy || !poemsInCurrentCollection().length;
-  elements.authorSelect.disabled = busy || !poemsInCurrentCategory().length;
-  elements.tagSelect.disabled = busy || !poemsInCurrentCategory().length;
-  elements.resultTrigger.disabled = busy || !filteredPoems().length;
-  elements.searchTrigger.disabled = busy || !state.index.length;
+  const libraryBusy = busy || !state.libraryReady;
+  for (const control of elements.categoryButtons) {
+    control.disabled = libraryBusy || !state.index.length;
+  }
+  elements.reviewModeSelect.disabled = libraryBusy || !state.index.length;
+  elements.periodSelect.disabled = libraryBusy || !poemsInCurrentCollection().length;
+  elements.authorSelect.disabled = libraryBusy || !poemsInCurrentCategory().length;
+  elements.tagSelect.disabled = libraryBusy || !poemsInCurrentCategory().length;
+  elements.resultTrigger.disabled = libraryBusy || !filteredPoems().length;
+  elements.searchTrigger.disabled = libraryBusy || !state.index.length;
   renderDailyAction();
   elements.favoriteAction.disabled = busy || !state.current;
   elements.nextAction.disabled = busy || !filteredPoems().length;
@@ -1295,6 +1340,34 @@ function authorProfileFor(poem) {
   };
 }
 
+function loadAuthors() {
+  if (state.authors.size) return Promise.resolve(state.authors);
+  if (!state.authorsPromise) {
+    state.authorsPromise = fetch(`data/authors.json?v=${DATA_VERSION}`)
+      .then((response) => {
+        if (!response.ok) throw new Error(`作者资料读取失败：${response.status}`);
+        return response.json();
+      })
+      .then((data) => {
+        if (!Array.isArray(data.authors) || !data.authors.length) {
+          throw new Error("作者资料为空");
+        }
+        state.authors = new Map(
+          data.authors.map((author) => [
+            authorKey(author.dynasty, author.name),
+            author,
+          ]),
+        );
+        return state.authors;
+      })
+      .catch((error) => {
+        state.authorsPromise = null;
+        throw error;
+      });
+  }
+  return state.authorsPromise;
+}
+
 function renderAuthorSource(profile) {
   const fragments = [localizedTextNode("资料来源：")];
   if (profile.sourceUrl) {
@@ -1348,7 +1421,7 @@ function renderActiveAuthorDialog() {
   );
 }
 
-function openAuthorDialog(poem) {
+async function openAuthorDialog(poem) {
   clearAutoNextTimer();
   const profile = authorProfileFor(poem);
   const unit = workUnit(poem.period);
@@ -1356,6 +1429,24 @@ function openAuthorDialog(poem) {
   renderActiveAuthorDialog();
   elements.authorDialog.showModal();
   elements.authorDialogClose.focus();
+  const requestedAuthor = authorKey(poem.dynasty, poem.author);
+  try {
+    await loadAuthors();
+    if (
+      !elements.authorDialog.open ||
+      authorKey(state.activeAuthor?.dynasty, state.activeAuthor?.name) !== requestedAuthor
+    ) {
+      return;
+    }
+    state.activeAuthor = {
+      ...authorProfileFor(poem),
+      period: poem.period,
+      unit,
+    };
+    renderActiveAuthorDialog();
+  } catch (error) {
+    console.error(error);
+  }
 }
 
 function showActiveAuthorWorks() {
@@ -1619,6 +1710,7 @@ function createTags(poem) {
   for (const tag of poem.tags) {
     const button = makeElement("button", "poem-tag", tag);
     button.type = "button";
+    button.disabled = !state.libraryReady;
     button.setAttribute("aria-pressed", String(state.tag === tag));
     button.addEventListener("click", () => {
       state.tag = state.tag === tag ? "" : tag;
@@ -1941,6 +2033,15 @@ async function loadChunk(chunkName) {
 }
 
 async function expandPoem(meta) {
+  // 首屏精读包已经带有完整正文，直接展开，不再为第一首诗追加一次分卷请求。
+  if (Array.isArray(meta.lines)) {
+    return {
+      ...meta,
+      translation: Array.isArray(meta.translation) ? meta.translation : [],
+      translationMeta: normalizeTranslationMeta(meta.translationMeta),
+      deepReading: meta.deepReading ?? state.deepReadings.get(meta.id) ?? null,
+    };
+  }
   const chunk = await loadChunk(meta.chunk);
   const body = chunk.get(meta.id);
   if (!body) throw new Error(`未在分卷中找到《${meta.title}》`);
@@ -2193,6 +2294,7 @@ async function openShareDialog() {
   if (!elements.shareDialog.open) elements.shareDialog.showModal();
 
   try {
+    const { createSharePoster } = await loadSharePosterModule();
     if (document.fonts?.ready) await document.fonts.ready;
     createSharePoster(
       elements.shareCanvas,
@@ -2254,6 +2356,7 @@ function downloadShareBlob(blob, fileName) {
 async function shareOrDownloadPoster() {
   if (!state.current || state.sharePosterPoemId !== state.current.id) return;
   try {
+    const { buildShareFileName } = await loadSharePosterModule();
     const localizedPoem = localizedSharePoem(state.current);
     const blob = await shareCanvasBlob();
     const fileName = buildShareFileName(localizedPoem);
@@ -2506,7 +2609,13 @@ function bindEvents() {
   }
   for (const option of elements.scriptOptions) {
     option.addEventListener("click", () => {
-      applyScript(option.dataset.scriptOption, { persist: true, announce: true });
+      void applyScript(option.dataset.scriptOption, {
+        persist: true,
+        announce: true,
+      }).catch((error) => {
+        console.error(error);
+        updateNotice("繁体转换组件暂未能加载，请稍后再试");
+      });
     });
   }
 
@@ -2722,6 +2831,91 @@ function bindEvents() {
   window.addEventListener("pagehide", clearAutoNextTimer);
 }
 
+function applyStartupData(data) {
+  if (!Array.isArray(data.poems) || !data.poems.length) {
+    throw new Error("首屏精读诗词为空");
+  }
+  if (!Array.isArray(data.sources) || !data.sources.length) {
+    throw new Error("首屏精读核对依据为空");
+  }
+  for (const poem of data.poems) {
+    if (!Array.isArray(poem.lines) || !poem.lines.length || !poem.deepReading) {
+      throw new Error(`首屏诗词内容不完整：${poem.id}`);
+    }
+  }
+
+  state.deepReadings = new Map(
+    data.poems.map((poem) => [poem.id, poem.deepReading]),
+  );
+  state.deepSources = new Map(
+    data.sources.map((source) => [source.id, source]),
+  );
+  state.deepEditorialPolicy =
+    typeof data.editorialPolicy === "string" ? data.editorialPolicy : "";
+  state.index = data.poems.map(normalizeMeta);
+  state.poemsById = new Map(state.index.map((poem) => [poem.id, poem]));
+  state.reviewCounts = {
+    deep: Number(data.counts?.deep) || state.index.length,
+    reviewed: Number(data.counts?.reviewed) || state.index.length,
+    all: Number(data.counts?.all) || state.index.length,
+  };
+}
+
+function normalizeLearningLibrary() {
+  const deepPoemIds = new Set(
+    state.index
+      .filter((poem) => poem.depthStatus === "deep")
+      .map((poem) => poem.id),
+  );
+  state.learningProgress = normalizeLearningProgress({
+    version: 1,
+    poems: Object.fromEntries(
+      Object.entries(state.learningProgress.poems).filter(([id]) =>
+        deepPoemIds.has(id),
+      ),
+    ),
+  });
+}
+
+function loadFullLibrary() {
+  if (!state.libraryPromise) {
+    state.libraryPromise = fetch(`data/poems/index.json?v=${DATA_VERSION}`)
+      .then((response) => {
+        if (!response.ok) throw new Error(`诗库索引读取失败：${response.status}`);
+        return response.json();
+      })
+      .then((data) => {
+        if (!Array.isArray(data.poems) || !data.poems.length) {
+          throw new Error("诗库索引为空");
+        }
+        state.index = data.poems.map(normalizeMeta);
+        state.poemsById = new Map(state.index.map((poem) => [poem.id, poem]));
+        state.reviewCounts = {
+          deep: state.index.filter((poem) => poem.depthStatus === "deep").length,
+          reviewed: state.index.filter((poem) => poem.reviewStatus === "reviewed").length,
+          all: state.index.length,
+        };
+        normalizeLearningLibrary();
+        state.favorites = new Set(
+          [...state.favorites].filter((id) => state.poemsById.has(id)),
+        );
+        state.libraryReady = true;
+        renderFilters();
+        if (state.current) renderPoem(state.current, { scroll: false });
+        setBusy(false);
+        updateNotice(
+          `完整诗库已就绪 · ${state.reviewCounts.deep} 篇精读 · ${state.reviewCounts.all} 篇全库`,
+        );
+        return state.index;
+      })
+      .catch((error) => {
+        state.libraryPromise = null;
+        throw error;
+      });
+  }
+  return state.libraryPromise;
+}
+
 async function initialize() {
   registerReaderPage();
   updateFeedbackLink(null);
@@ -2729,10 +2923,8 @@ async function initialize() {
   applyFont(state.font);
   bindEvents();
   try {
-    const [response, authorResponse, deepResponse] = await Promise.all([
-      fetch(`data/poems/index.json?v=${DATA_VERSION}`),
-      fetch(`data/authors.json?v=${DATA_VERSION}`),
-      fetch(`data/deep-readings.json?v=${DATA_VERSION}`),
+    const [startupResponse] = await Promise.all([
+      fetch(`data/poems/startup.json?v=${DATA_VERSION}`),
       loadFavorites(),
       loadTheme(),
       loadFont(),
@@ -2742,73 +2934,25 @@ async function initialize() {
       loadReadingStats(),
       loadLearningProgress(),
     ]);
-    if (!response.ok) throw new Error(`诗库索引读取失败：${response.status}`);
-    if (!authorResponse.ok) throw new Error(`作者资料读取失败：${authorResponse.status}`);
-    if (!deepResponse.ok) throw new Error(`精读稿读取失败：${deepResponse.status}`);
-    const [data, authorData, deepData] = await Promise.all([
-      response.json(),
-      authorResponse.json(),
-      deepResponse.json(),
-    ]);
-    if (!Array.isArray(data.poems) || !data.poems.length) throw new Error("诗库索引为空");
-    if (!Array.isArray(authorData.authors) || !authorData.authors.length) {
-      throw new Error("作者资料为空");
+    if (!startupResponse.ok) {
+      throw new Error(`首屏精读数据读取失败：${startupResponse.status}`);
     }
-    if (!Array.isArray(deepData.poems) || !deepData.poems.length) {
-      throw new Error("精读稿为空");
-    }
-    if (!Array.isArray(deepData.sources) || !deepData.sources.length) {
-      throw new Error("精读核对依据为空");
-    }
-
-    // 必须先建立精读映射，再归一化索引，才能为每篇作品赋予准确的深度层级。
-    state.deepReadings = new Map(
-      deepData.poems.map((reading) => [reading.id, reading]),
-    );
-    state.deepSources = new Map(
-      deepData.sources.map((source) => [source.id, source]),
-    );
-    state.deepEditorialPolicy =
-      typeof deepData.editorialPolicy === "string" ? deepData.editorialPolicy : "";
-    state.index = data.poems.map(normalizeMeta);
-    state.reviewCounts = {
-      deep: state.index.filter((poem) => poem.depthStatus === "deep").length,
-      reviewed: state.index.filter((poem) => poem.reviewStatus === "reviewed").length,
-      all: state.index.length,
-    };
-    state.poemsById = new Map(state.index.map((poem) => [poem.id, poem]));
-    const deepPoemIds = new Set(
-      state.index
-        .filter((poem) => poem.depthStatus === "deep")
-        .map((poem) => poem.id),
-    );
-    state.learningProgress = normalizeLearningProgress({
-      version: 1,
-      poems: Object.fromEntries(
-        Object.entries(state.learningProgress.poems).filter(([id]) =>
-          deepPoemIds.has(id),
-        ),
-      ),
-    });
-    state.authors = new Map(
-      authorData.authors.map((author) => [
-        authorKey(author.dynasty, author.name),
-        author,
-      ]),
-    );
-    state.favorites = new Set(
-      [...state.favorites].filter((id) => state.index.some((poem) => poem.id === id)),
-    );
-    renderFilters();
+    applyStartupData(await startupResponse.json());
+    normalizeLearningLibrary();
     await showPoem(
       chooseRandom(filteredPoems()),
-      state.reviewMode === "deep"
-        ? `深度精读已展开 · 共 ${state.reviewCounts.deep} 篇 · 轻点诗句逐句读懂`
-        : state.reviewMode === "reviewed"
-          ? `已校精选已展开 · 共 ${state.reviewCounts.reviewed} 篇`
-          : `全库广览已展开 · 共 ${state.reviewCounts.all} 篇 · 含待校内容`,
+      "精读诗笺已展开 · 完整诗库继续在后台准备",
     );
     state.ready = true;
+
+    // 把完整索引放到下一轮事件循环，先给浏览器一次绘制第一首诗的机会。
+    window.setTimeout(() => {
+      void loadFullLibrary().catch((error) => {
+        console.error(error);
+        setBusy(false);
+        updateNotice("百篇精读仍可阅读，完整诗库暂未能展开");
+      });
+    }, 0);
   } catch (error) {
     console.error(error);
     setBusy(false);

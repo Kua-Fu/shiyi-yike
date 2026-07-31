@@ -34,6 +34,7 @@ const requiredFiles = [
   "styles.css",
   "extension.css",
   "data/deep-readings.json",
+  "data/poems/startup.json",
   "assets/fonts/ZhiMangXing-Regular.ttf",
   "assets/fonts/ZhiMangXing-OFL.txt",
   "vendor/opencc-js/full.js",
@@ -628,8 +629,8 @@ for (const [value, label] of [
 }
 assert.match(
   newTabHtml,
-  /<script src="vendor\/opencc-js\/full\.js"><\/script>\s*<script type="module" src="app\.js"><\/script>/,
-  "离线繁简转换库应在应用脚本前加载",
+  /<script type="module" src="app\.js"><\/script>/,
+  "阅读页应加载应用模块",
 );
 assert.equal(
   (newTabHtml.match(/data-theme-option=/g) ?? []).length,
@@ -864,7 +865,17 @@ assert.match(
   /makeElement\("button", "verse verse-trigger"\)/,
   "深度作品应支持点击诗句逐句展开",
 );
-assert.match(appSource, /data\/deep-readings\.json/, "精读数据必须从扩展包本地加载");
+assert.match(appSource, /data\/poems\/startup\.json/, "首屏精读数据必须从扩展包本地加载");
+assert.doesNotMatch(
+  fs.readFileSync(path.join(projectRoot, "newtab.html"), "utf8"),
+  /<script src="vendor\/opencc-js\/full\.js"/,
+  "默认简体首屏不应同步加载繁简转换组件",
+);
+assert.match(
+  appSource,
+  /import\("\.\/share-poster\.js"\)/,
+  "分享海报与二维码组件应在用户打开分享时再加载",
+);
 assert.doesNotMatch(appSource, /fetch\([^)]*github\.com/, "扩展不应自动向 GitHub 发送请求");
 assert.match(appSource, /function renderAuthorSource\(profile\)/, "人物小传应渲染可核对的来源");
 assert.match(appSource, /sourceLink\.rel = "noopener noreferrer"/, "人物资料外链应隔离来源页面");

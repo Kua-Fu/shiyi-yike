@@ -42,6 +42,21 @@ assert.match(
   "窄屏收藏按钮应提供不会折行的短标签",
 );
 assert.match(
+  sourceHtml,
+  /class="previous-label-short">上一首</,
+  "窄屏上一篇按钮应完整显示“上一首”",
+);
+assert.match(
+  responsiveCss,
+  /\.filter-favorites::before[\s\S]+width: 22px;[\s\S]+height: 22px;[\s\S]+mask:/,
+  "手机顶栏收藏图标应使用固定比例图形，避免字体心形被纵向拉长",
+);
+assert.match(
+  responsiveCss,
+  /@media \(width <= 650px\)[\s\S]+\.select-field select \{[\s\S]+font-size: 14px;/,
+  "手机筛选下拉框应使用更紧凑的字号",
+);
+assert.match(
   sourceApp,
   /document\.addEventListener\("pointerdown"[\s\S]+elements\.libraryPanel\.open = false;/,
   "覆盖式诗库筛选应支持点击外部关闭",
@@ -67,6 +82,7 @@ for (const requiredEntry of [
   "assets/fonts/ZhiMangXing-Regular.ttf",
   "vendor/opencc-js/full.js",
   "vendor/qrcode-generator/qrcode.mjs",
+  "data/poems/startup.json",
   "data/poems/index.json",
   "data/poems/search.json",
   "data/deep-readings.json",

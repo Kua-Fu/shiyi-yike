@@ -8,8 +8,10 @@ const readJson = (relativePath) =>
   JSON.parse(fs.readFileSync(path.join(projectRoot, relativePath), "utf8"));
 
 const deepData = readJson("data/deep-readings.json");
+const startupData = readJson("data/poems/startup.json");
 const index = readJson("data/poems/index.json");
 const indexById = new Map(index.poems.map((poem) => [poem.id, poem]));
+const deepIds = new Set(deepData.poems.map((poem) => poem.id));
 const sourceById = new Map(deepData.sources.map((source) => [source.id, source]));
 const chunkCache = new Map();
 
@@ -27,6 +29,26 @@ assert.equal(
 );
 assert.equal(sourceById.size, deepData.sources.length, "精读核对依据 ID 不得重复");
 assert.ok(sourceById.has("project-editorial"), "每篇精读应能引用项目原创编辑来源");
+assert.deepEqual(
+  startupData.counts,
+  { deep: 100, reviewed: 938, all: 5334 },
+  "首屏数据应携带完整诗库范围计数",
+);
+assert.equal(startupData.poems.length, 100, "首屏数据应覆盖全部 100 篇深度精读");
+assert.deepEqual(
+  startupData.poems.map((poem) => poem.id),
+  index.poems.filter((poem) => deepIds.has(poem.id)).map((poem) => poem.id),
+  "首屏精读顺序应与诗库索引一致",
+);
+for (const poem of startupData.poems) {
+  assert.ok(poem.lines.length, `首屏诗词必须包含正文：《${poem.title}》`);
+  assert.equal(
+    poem.translation.length,
+    poem.lines.length,
+    `首屏诗词必须包含逐句对齐译文：《${poem.title}》`,
+  );
+  assert.equal(poem.deepReading?.id, poem.id, `首屏诗词必须内嵌精读稿：《${poem.title}》`);
+}
 
 const periodCounts = new Map();
 for (const reading of deepData.poems) {

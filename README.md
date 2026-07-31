@@ -126,9 +126,13 @@ npm run release:prepare
 ├── data/authors.json    # 本地诗人、词人人物简介
 ├── data/deep-readings.json # 100 篇原创精读稿、难词点注与核对依据
 ├── data/sources/        # 作者小传与译文的来源及许可信息
+├── data/poems/startup.json # 首屏直出的 100 篇完整精读诗词
 ├── data/poems/search.json # 本地诗词全文搜索索引
 └── data/poems/          # 本地诗词索引与 56 个分卷
 ```
+
+网页和扩展启动时先读取轻量首屏包，显示第一篇诗词后再补齐完整诗库索引；人物小传、全文搜索、
+繁简转换和分享二维码均在实际使用时按需加载，避免移动网络首次访问被非首屏资源阻塞。
 
 ## 内容来源
 

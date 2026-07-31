@@ -1600,6 +1600,7 @@ button:focus-visible {
   color: var(--ink-soft);
   background: var(--surface);
   cursor: pointer;
+  white-space: nowrap;
   font: 500 12px/1 var(--sans);
   letter-spacing: .08em;
   transition: color .18s, border-color .18s, background .18s;
@@ -3505,14 +3506,19 @@ button:focus-visible {
     position: relative;
   }
 
+  /* 不同手机系统的“♡”字形高宽差异很大，固定比例矢量图可避免心形被纵向拉长。 */
   .filter-favorites::before {
-    content: "♡";
-    font: 500 21px/1 var(--serif);
-    letter-spacing: 0;
+    content: "";
+    width: 22px;
+    height: 22px;
+    background: currentColor;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
   }
 
   .filter-favorites[aria-pressed="true"]::before {
-    content: "♥";
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 21.23 3.16 12.39a5.5 5.5 0 0 1 7.78-7.78L12 5.67l1.06-1.06a5.5 5.5 0 0 1 7.78 7.78z' fill='black'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 21.23 3.16 12.39a5.5 5.5 0 0 1 7.78-7.78L12 5.67l1.06-1.06a5.5 5.5 0 0 1 7.78 7.78z' fill='black'/%3E%3C/svg%3E");
   }
 
   .favorite-nav-count {
@@ -3576,7 +3582,7 @@ button:focus-visible {
     height: 48px;
     border-radius: 10px;
     background: var(--surface-strong);
-    font-size: 16px;
+    font-size: 14px;
   }
 
   .filter-result {
