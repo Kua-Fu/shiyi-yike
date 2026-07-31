@@ -1768,6 +1768,15 @@ function createPoemMeta(text) {
   return meta;
 }
 
+function splitFocusLine(line) {
+  return (
+    String(line)
+      .match(/[^，。！？；：]+[，。！？；：]?/gu)
+      ?.map((segment) => segment.trim())
+      .filter(Boolean) ?? [String(line)]
+  );
+}
+
 function renderFocusView() {
   if (!state.current) return;
   const poem = state.current;
@@ -1778,9 +1787,26 @@ function renderFocusView() {
     delete elements.focusTitle.dataset.longTitle;
   }
   setLocalizedText(elements.focusByline, `${poem.dynasty} · ${poem.author}`);
-  elements.focusLines.replaceChildren(
-    ...poem.lines.map((line) => makeElement("p", "", line)),
-  );
+  let longestSegment = 0;
+  const focusLines = poem.lines.map((line) => {
+    const paragraph = makeElement("p", "focus-poem-line");
+    for (const segment of splitFocusLine(line)) {
+      const segmentElement = makeElement(
+        "span",
+        "focus-poem-line-segment",
+        segment,
+      );
+      const segmentLength = [...segment].length;
+      longestSegment = Math.max(longestSegment, segmentLength);
+      if (segmentLength <= 12) segmentElement.dataset.singleLine = "true";
+      paragraph.append(segmentElement);
+    }
+    return paragraph;
+  });
+  // 桌面端分句保持同行；手机端依据最长分句选择字号，并在标点后分行，避免句中硬折行。
+  elements.focusLines.dataset.density =
+    longestSegment <= 9 ? "regular" : longestSegment <= 12 ? "compact" : "long";
+  elements.focusLines.replaceChildren(...focusLines);
   setLocalizedAttribute(
     elements.focusView,
     "aria-label",

@@ -237,9 +237,13 @@
   gap: .18em;
 }
 
-.focus-poem-lines p {
+.focus-poem-line {
   overflow-wrap: anywhere;
   margin: 0;
+}
+
+.focus-poem-line-segment {
+  display: inline;
 }
 
 .focus-exit {
@@ -4102,6 +4106,32 @@ button:focus-visible {
     font-size: clamp(20px, 6vw, 26px);
     line-height: 1.9;
     letter-spacing: .1em;
+    gap: .5em;
+  }
+
+  .focus-poem-line {
+    display: grid;
+    justify-items: center;
+    gap: .08em;
+  }
+
+  .focus-poem-line-segment {
+    display: block;
+    max-width: 100%;
+  }
+
+  .focus-poem-line-segment[data-single-line="true"] {
+    white-space: nowrap;
+  }
+
+  .focus-poem-lines[data-density="compact"] {
+    font-size: clamp(17px, 5vw, 22px);
+    letter-spacing: .07em;
+  }
+
+  .focus-poem-lines[data-density="long"] {
+    font-size: clamp(15px, 4.4vw, 19px);
+    letter-spacing: .04em;
   }
 
   .focus-exit {

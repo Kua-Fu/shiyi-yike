@@ -690,13 +690,44 @@ assert.match(appSource, /function openPoemList\(\)/, "应支持打开当前筛�
 assert.match(appSource, /showPoem\(poem, options\.message \|\|/, "点击列表项应直接进入诗词正文");
 assert.match(appSource, /function openGlobalSearch\(\)/, "应支持打开全库诗词搜索");
 assert.match(appSource, /focusMode: false/, "专注模式默认应保持关闭");
+assert.match(appSource, /function splitFocusLine\(line\)/, "专注模式应按中文标点识别分句");
+const splitFocusLineSource = appSource.match(
+  /function splitFocusLine\(line\) \{[\s\S]*?\n\}/,
+)?.[0];
+assert.ok(splitFocusLineSource, "应能提取专注模式分句函数进行行为校验");
+const splitFocusLineForTest = Function(
+  `${splitFocusLineSource}; return splitFocusLine;`,
+)();
+assert.deepEqual(
+  [
+    "秋丛绕舍似陶家，遍绕篱边日渐斜。",
+    "不是花中偏爱菊，此花开尽更无花。",
+  ].flatMap(splitFocusLineForTest),
+  [
+    "秋丛绕舍似陶家，",
+    "遍绕篱边日渐斜。",
+    "不是花中偏爱菊，",
+    "此花开尽更无花。",
+  ],
+  "手机专注模式下《菊花》应按完整分句显示为四行",
+);
+assert.match(
+  appSource,
+  /\[\^，。！？；：\]\+\[，。！？；：\]\?/,
+  "专注模式分句时应保留句末中文标点",
+);
 assert.match(appSource, /function renderFocusView\(\)/, "专注模式应只渲染当前诗词原文");
 assert.match(appSource, /function enterFocusMode\(\)/, "应支持进入专注模式");
 assert.match(appSource, /function exitFocusMode\(\)/, "应支持退出专注模式");
 assert.match(
   appSource,
-  /elements\.focusLines\.replaceChildren\([\s\S]*poem\.lines\.map/,
-  "专注阅读层应从原文诗句生成内容",
+  /const focusLines = poem\.lines\.map[\s\S]*elements\.focusLines\.replaceChildren\(\.\.\.focusLines\)/,
+  "专注阅读层应从原文诗句和分句生成内容",
+);
+assert.match(
+  appSource,
+  /longestSegment <= 9 \? "regular" : longestSegment <= 12 \? "compact" : "long"/,
+  "专注阅读层应根据最长分句选择手机字号密度",
 );
 assert.match(
   appSource,
@@ -984,6 +1015,16 @@ assert.match(extensionStyles, /\.script-option/, "外观面板应提供简繁选
 assert.match(extensionStyles, /\.daily-trigger/, "应提供今日诗签控件样式");
 assert.match(extensionStyles, /\.focus-trigger/, "应提供专注模式入口样式");
 assert.match(extensionStyles, /\.focus-view/, "应提供纯原文专注阅读层样式");
+assert.match(
+  extensionStyles,
+  /@media \(width <= 650px\)[\s\S]+\.focus-poem-line-segment \{[\s\S]+display: block;/,
+  "手机专注模式应把标点分句各自排成一行",
+);
+assert.match(
+  extensionStyles,
+  /\.focus-poem-lines\[data-density="compact"\][\s\S]+\.focus-poem-lines\[data-density="long"\]/,
+  "手机专注模式应为较长分句提供紧凑字号",
+);
 assert.match(
   extensionStyles,
   /\.focus-exit[\s\S]+width: 44px;[\s\S]+height: 44px;/,
