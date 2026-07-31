@@ -83,7 +83,8 @@
 }
 
 .daily-trigger,
-.search-trigger {
+.search-trigger,
+.focus-trigger {
   min-width: 76px;
   min-height: 36px;
   padding: 8px 12px;
@@ -104,14 +105,17 @@
 .daily-trigger:hover,
 .daily-trigger:focus-visible,
 .search-trigger:hover,
-.search-trigger:focus-visible {
+.search-trigger:focus-visible,
+.focus-trigger:hover,
+.focus-trigger:focus-visible {
   color: var(--paper-light);
   background: var(--cinnabar);
   box-shadow: 0 4px 14px #68352c24;
 }
 
 .daily-trigger:disabled,
-.search-trigger:disabled {
+.search-trigger:disabled,
+.focus-trigger:disabled {
   cursor: default;
   opacity: .5;
 }
@@ -144,6 +148,123 @@
 
 .search-trigger-icon {
   font: 400 18px/1 var(--serif);
+}
+
+.focus-trigger {
+  min-width: 72px;
+  color: var(--ink-soft);
+  background: transparent;
+}
+
+.focus-trigger-mark {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  color: var(--cinnabar-dark);
+  background: var(--surface);
+  font: 500 11px/18px var(--serif);
+  letter-spacing: 0;
+}
+
+.focus-trigger:hover .focus-trigger-mark,
+.focus-trigger:focus-visible .focus-trigger-mark {
+  border-color: #ffffff73;
+  color: var(--paper-light);
+  background: #ffffff17;
+}
+
+/* 专注模式使用独立纯原文层，正文之外只留一个触控友好的退出入口。 */
+.focus-view {
+  z-index: 100;
+  color: var(--ink);
+  background: var(--paper-art);
+  background-size: 23px 21px, 31px 29px, auto, auto;
+  overscroll-behavior: contain;
+  position: fixed;
+  inset: 0;
+  overflow: hidden auto;
+}
+
+.focus-view[hidden] {
+  display: none;
+}
+
+.focus-view:focus {
+  outline: none;
+}
+
+.focus-view-inner {
+  width: min(820px, 100%);
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding:
+    max(92px, calc(env(safe-area-inset-top) + 68px))
+    max(48px, env(safe-area-inset-right))
+    max(92px, calc(env(safe-area-inset-bottom) + 68px))
+    max(48px, env(safe-area-inset-left));
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.focus-poem-title {
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+  margin: 0;
+  font: 500 clamp(50px, 6.2vw, 82px)/1.16 var(--kai);
+  letter-spacing: .1em;
+}
+
+.focus-poem-title[data-long-title="true"] {
+  font-size: clamp(36px, 4.7vw, 62px);
+  line-height: 1.25;
+}
+
+.focus-poem-byline {
+  margin: 24px 0 48px;
+  color: var(--ink-soft);
+  font: 400 16px/1.6 var(--serif);
+  letter-spacing: .22em;
+}
+
+.focus-poem-lines {
+  font: 400 clamp(22px, 2.25vw, 30px)/2 var(--serif);
+  letter-spacing: .15em;
+  display: grid;
+  gap: .18em;
+}
+
+.focus-poem-lines p {
+  overflow-wrap: anywhere;
+  margin: 0;
+}
+
+.focus-exit {
+  z-index: 1;
+  width: 44px;
+  height: 44px;
+  border: 1px solid color-mix(in srgb, var(--ink-soft) 32%, transparent);
+  border-radius: 50%;
+  color: var(--ink-soft);
+  background: color-mix(in srgb, var(--paper) 82%, transparent);
+  cursor: pointer;
+  opacity: .58;
+  font: 300 26px/40px var(--sans);
+  position: fixed;
+  top: max(22px, env(safe-area-inset-top));
+  right: max(22px, env(safe-area-inset-right));
+  transition: opacity .18s, color .18s, border-color .18s, transform .18s;
+}
+
+.focus-exit:hover,
+.focus-exit:focus-visible {
+  border-color: var(--cinnabar);
+  color: var(--cinnabar-dark);
+  opacity: 1;
+  transform: rotate(5deg);
 }
 
 .feedback-trigger {
@@ -913,6 +1034,7 @@ button:focus-visible {
 .favorite-nav-count,
 .daily-trigger,
 .search-trigger,
+.focus-trigger,
 .author-filter {
   background: var(--accent-soft);
 }
@@ -1939,14 +2061,25 @@ button:focus-visible {
 
 @media (width <= 430px) {
   .daily-trigger,
-  .search-trigger {
+  .search-trigger,
+  .focus-trigger {
     flex-basis: 40px;
     padding-inline: 5px;
   }
 
   .daily-trigger-name,
-  .search-trigger-name {
+  .search-trigger-name,
+  .focus-trigger-name {
     display: none;
+  }
+
+  .brand-title {
+    width: 1px;
+    height: 1px;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    position: absolute;
+    overflow: hidden;
   }
 
   .font-section-header p,
@@ -2000,6 +2133,7 @@ button:focus-visible {
 
   .daily-trigger,
   .search-trigger,
+  .focus-trigger,
   .theme-trigger,
   .filter {
     min-height: 34px;
@@ -3460,6 +3594,7 @@ button:focus-visible {
 
   .daily-trigger,
   .search-trigger,
+  .focus-trigger,
   .theme-trigger,
   .filter-favorites {
     width: 44px;
@@ -3492,6 +3627,7 @@ button:focus-visible {
   /* 文案在窄屏只做视觉隐藏，按钮仍保留完整的无障碍名称。 */
   .daily-trigger-name,
   .search-trigger-name,
+  .focus-trigger-name,
   #theme-trigger-name,
   .filter-favorites > span:first-child {
     width: 1px;
@@ -3940,6 +4076,39 @@ button:focus-visible {
     padding-inline: 16px;
   }
 
+  .focus-view-inner {
+    padding:
+      max(78px, calc(env(safe-area-inset-top) + 58px))
+      max(24px, env(safe-area-inset-right))
+      max(68px, calc(env(safe-area-inset-bottom) + 44px))
+      max(24px, env(safe-area-inset-left));
+  }
+
+  .focus-poem-title {
+    font-size: clamp(44px, 13vw, 58px);
+    letter-spacing: .075em;
+  }
+
+  .focus-poem-title[data-long-title="true"] {
+    font-size: clamp(31px, 9vw, 42px);
+  }
+
+  .focus-poem-byline {
+    margin: 18px 0 38px;
+    font-size: 15px;
+  }
+
+  .focus-poem-lines {
+    font-size: clamp(20px, 6vw, 26px);
+    line-height: 1.9;
+    letter-spacing: .1em;
+  }
+
+  .focus-exit {
+    top: max(14px, env(safe-area-inset-top));
+    right: max(14px, env(safe-area-inset-right));
+  }
+
   button,
   summary,
   a,
@@ -4041,6 +4210,7 @@ button:focus-visible {
 
   .daily-trigger,
   .search-trigger,
+  .focus-trigger,
   .theme-trigger,
   .filter {
     min-height: 36px;

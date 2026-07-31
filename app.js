@@ -143,9 +143,11 @@ const state = {
   autoNextDeadline: null,
   noticeDismissTimer: null,
   sharePosterPoemId: null,
+  focusMode: false,
 };
 
 const elements = {
+  readerShell: document.querySelector(".scroll"),
   categoryButtons: [...document.querySelectorAll("[data-category]")],
   themeColorMeta: document.querySelector("#theme-color-meta"),
   themeTrigger: document.querySelector("#theme-trigger"),
@@ -207,6 +209,12 @@ const elements = {
   poemList: document.querySelector("#poem-list"),
   poemListEmpty: document.querySelector("#poem-list-empty"),
   searchTrigger: document.querySelector("#search-trigger"),
+  focusTrigger: document.querySelector("#focus-trigger"),
+  focusView: document.querySelector("#focus-view"),
+  focusExit: document.querySelector("#focus-exit"),
+  focusTitle: document.querySelector("#focus-title"),
+  focusByline: document.querySelector("#focus-byline"),
+  focusLines: document.querySelector("#focus-lines"),
   feedbackTrigger: document.querySelector("#feedback-trigger"),
   searchDialog: document.querySelector("#search-dialog"),
   searchDialogClose: document.querySelector("#search-dialog-close"),
@@ -562,6 +570,7 @@ function autoNextCanRun() {
   return (
     state.autoNextSeconds > 0 &&
     !state.busy &&
+    !state.focusMode &&
     !state.emptyCollection &&
     Boolean(state.current) &&
     filteredPoems().length > 1 &&
@@ -1034,6 +1043,7 @@ function setBusy(busy) {
   elements.tagSelect.disabled = libraryBusy || !poemsInCurrentCategory().length;
   elements.resultTrigger.disabled = libraryBusy || !filteredPoems().length;
   elements.searchTrigger.disabled = libraryBusy || !state.index.length;
+  elements.focusTrigger.disabled = busy || !state.current;
   renderDailyAction();
   elements.favoriteAction.disabled = busy || !state.current;
   elements.nextAction.disabled = busy || !filteredPoems().length;
@@ -1758,6 +1768,59 @@ function createPoemMeta(text) {
   return meta;
 }
 
+function renderFocusView() {
+  if (!state.current) return;
+  const poem = state.current;
+  setLocalizedText(elements.focusTitle, poem.title);
+  if (poem.title.length > 8) {
+    elements.focusTitle.dataset.longTitle = "true";
+  } else {
+    delete elements.focusTitle.dataset.longTitle;
+  }
+  setLocalizedText(elements.focusByline, `${poem.dynasty} · ${poem.author}`);
+  elements.focusLines.replaceChildren(
+    ...poem.lines.map((line) => makeElement("p", "", line)),
+  );
+  setLocalizedAttribute(
+    elements.focusView,
+    "aria-label",
+    `专注阅读《${poem.title}》，${poem.author}`,
+  );
+}
+
+function enterFocusMode() {
+  if (!state.current || state.busy) return;
+  // 专注层使用独立的纯原文结构，避免译注、标签和隐藏按钮继续进入键盘阅读顺序。
+  state.focusMode = true;
+  elements.libraryPanel.open = false;
+  clearAutoNextTimer();
+  renderFocusView();
+  elements.focusView.hidden = false;
+  document.documentElement.dataset.focusMode = "true";
+  elements.focusTrigger.setAttribute("aria-pressed", "true");
+  setLocalizedAttribute(elements.focusTrigger, "aria-label", "退出专注模式");
+  elements.focusView.focus({ preventScroll: true });
+  elements.readerShell.inert = true;
+  elements.readerShell.setAttribute("aria-hidden", "true");
+}
+
+function exitFocusMode() {
+  if (!state.focusMode) return;
+  state.focusMode = false;
+  elements.focusView.hidden = true;
+  elements.readerShell.inert = false;
+  elements.readerShell.removeAttribute("aria-hidden");
+  delete document.documentElement.dataset.focusMode;
+  elements.focusTrigger.setAttribute("aria-pressed", "false");
+  setLocalizedAttribute(
+    elements.focusTrigger,
+    "aria-label",
+    "进入专注模式，只显示诗词原文",
+  );
+  elements.focusTrigger.focus({ preventScroll: true });
+  scheduleAutoNext();
+}
+
 function renderPoem(poem, options = {}) {
   state.current = poem;
   state.emptyCollection = false;
@@ -1823,6 +1886,7 @@ function renderPoem(poem, options = {}) {
     ),
   );
 
+  if (state.focusMode) renderFocusView();
   renderFavorite();
   renderPreviousAction();
   renderDailyAction();
@@ -2737,6 +2801,8 @@ function bindEvents() {
   });
 
   elements.searchTrigger.addEventListener("click", openGlobalSearch);
+  elements.focusTrigger.addEventListener("click", enterFocusMode);
+  elements.focusExit.addEventListener("click", exitFocusMode);
   elements.searchDialogClose.addEventListener("click", () => elements.searchDialog.close());
   elements.globalSearchInput.addEventListener("input", renderGlobalSearch);
   elements.searchDialog.addEventListener("click", (event) => {
@@ -2782,6 +2848,29 @@ function bindEvents() {
 
   document.addEventListener("keydown", (event) => {
     const target = event.target;
+    if (state.focusMode) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        exitFocusMode();
+      } else if (
+        !event.metaKey &&
+        !event.ctrlKey &&
+        !event.altKey &&
+        (event.code === "Space" || event.code === "ArrowRight")
+      ) {
+        event.preventDefault();
+        if (!state.busy) showRandom();
+      } else if (
+        !event.metaKey &&
+        !event.ctrlKey &&
+        !event.altKey &&
+        event.code === "ArrowLeft"
+      ) {
+        event.preventDefault();
+        void showPreviousPoem();
+      }
+      return;
+    }
     if (
       event.key === "Escape" &&
       matchMedia("(max-width: 650px)").matches &&
@@ -2814,6 +2903,8 @@ function bindEvents() {
       void showPreviousPoem();
     } else if (event.key.toLowerCase() === "s") {
       openGlobalSearch();
+    } else if (event.key.toLowerCase() === "p") {
+      enterFocusMode();
     } else if (event.key.toLowerCase() === "d") {
       void openDailyPoem();
     } else if (event.key.toLowerCase() === "t") {

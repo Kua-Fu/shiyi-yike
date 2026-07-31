@@ -29,6 +29,10 @@
                 <span class="search-trigger-icon" aria-hidden="true">⌕</span>
                 <span class="search-trigger-name">搜索</span>
               </button>
+              <button id="focus-trigger" class="focus-trigger" type="button" aria-pressed="false" aria-controls="focus-view" aria-label="进入专注模式，只显示诗词原文" disabled>
+                <span class="focus-trigger-mark" aria-hidden="true">静</span>
+                <span class="focus-trigger-name">专注</span>
+              </button>
               <button id="theme-trigger" class="theme-trigger" type="button" aria-haspopup="dialog" aria-controls="theme-dialog" aria-label="打开外观设置，当前皮肤为宣纸雅韵，字体为默认雅韵，文字为简体中文">
                 <span class="theme-trigger-swatch" aria-hidden="true"></span>
                 <span id="theme-trigger-name">宣纸</span>
@@ -145,10 +149,23 @@
           <footer class="footer">
             <span class="footer-flourish" aria-hidden="true"></span>
             <span>默认一百篇深度精读，诗库另收九百三十八篇已校精选与五千三百三十四篇全库</span>
-            <span class="footer-shortcuts" aria-label="快捷键：D 今日诗签，S 搜索，T 外观，左方向键上一篇，空格键或右方向键换一篇，F 收藏，C 复制">D 今日诗签 · S 搜索 · T 外观 · ← 上一篇 · 空格 / → 换一篇 · F 收藏 · C 复制</span>
+            <span class="footer-shortcuts" aria-label="快捷键：D 今日诗签，S 搜索，P 专注，T 外观，左方向键上一篇，空格键或右方向键换一篇，F 收藏，C 复制">D 今日诗签 · S 搜索 · P 专注 · T 外观 · ← 上一篇 · 空格 / → 换一篇 · F 收藏 · C 复制</span>
             <span class="footer-flourish" aria-hidden="true"></span>
           </footer>
         </div>
+      </section>
+
+      <section id="focus-view" class="focus-view" aria-label="专注阅读" tabindex="-1" hidden>
+        <button id="focus-exit" class="focus-exit" type="button" aria-label="退出专注模式">
+          <span aria-hidden="true">×</span>
+        </button>
+        <article class="focus-view-inner">
+          <h1 id="focus-title" class="focus-poem-title">静候诗来</h1>
+          <p id="focus-byline" class="focus-poem-byline">古今 · 无界</p>
+          <div id="focus-lines" class="focus-poem-lines" aria-label="诗词原文">
+            <p>正在展开诗词原文……</p>
+          </div>
+        </article>
       </section>
     </main>
 

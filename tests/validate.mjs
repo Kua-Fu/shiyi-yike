@@ -551,6 +551,14 @@ assert.match(newTabHtml, /data-category="收藏"/, "顶部应提供收藏浏览�
 assert.match(newTabHtml, /id="result-trigger"/, "“篇可赏”数量应提供列表入口");
 assert.match(newTabHtml, /id="poem-list-dialog"/, "应提供当前筛选结果的诗词列表弹层");
 assert.match(newTabHtml, /id="search-trigger"/, "顶部应提供全库诗词搜索入口");
+assert.match(newTabHtml, /id="focus-trigger"/, "顶部应提供专注模式入口");
+assert.match(
+  newTabHtml,
+  /id="focus-trigger"[^>]*aria-controls="focus-view"[^>]*aria-label="进入专注模式，只显示诗词原文"/,
+  "专注模式入口应说明其纯原文阅读用途",
+);
+assert.match(newTabHtml, /id="focus-view"/, "专注模式应提供独立的纯原文阅读层");
+assert.match(newTabHtml, /id="focus-exit"/, "触屏用户应能直接退出专注模式");
 assert.match(newTabHtml, /id="daily-trigger"/, "顶部应提供今日诗签入口");
 assert.match(newTabHtml, /id="daily-trigger-mark"/, "今日入口应能切换为到期复习状态");
 assert.match(newTabHtml, /id="learning-dialog"/, "精读作品应提供逐句回想弹层");
@@ -594,9 +602,10 @@ assert.match(newTabHtml, /id="share-canvas"/, "分享面板应提供高清图片
 assert.match(newTabHtml, /id="share-copy-action"/, "分享面板应支持复制图片");
 assert.match(newTabHtml, /id="share-download-action"/, "分享面板应支持分享或下载图片");
 assert.match(newTabHtml, /D 今日诗签/, "页面应说明今日诗签快捷键");
+assert.match(newTabHtml, /P 专注/, "页面应说明专注模式快捷键");
 assert.match(
   newTabHtml,
-  /快捷键：D 今日诗签，S 搜索，T 外观，左方向键上一篇/,
+  /快捷键：D 今日诗签，S 搜索，P 专注，T 外观，左方向键上一篇/,
   "页面应向键盘用户说明上一篇快捷键",
 );
 assert.match(
@@ -680,6 +689,35 @@ assert.match(appSource, /诗笺尚空/, "收藏为空时应提供明确提示");
 assert.match(appSource, /function openPoemList\(\)/, "应支持打开当前筛选结果列表");
 assert.match(appSource, /showPoem\(poem, options\.message \|\|/, "点击列表项应直接进入诗词正文");
 assert.match(appSource, /function openGlobalSearch\(\)/, "应支持打开全库诗词搜索");
+assert.match(appSource, /focusMode: false/, "专注模式默认应保持关闭");
+assert.match(appSource, /function renderFocusView\(\)/, "专注模式应只渲染当前诗词原文");
+assert.match(appSource, /function enterFocusMode\(\)/, "应支持进入专注模式");
+assert.match(appSource, /function exitFocusMode\(\)/, "应支持退出专注模式");
+assert.match(
+  appSource,
+  /elements\.focusLines\.replaceChildren\([\s\S]*poem\.lines\.map/,
+  "专注阅读层应从原文诗句生成内容",
+);
+assert.match(
+  appSource,
+  /elements\.readerShell\.inert = true/,
+  "进入专注模式后，普通阅读界面不应继续进入键盘顺序",
+);
+assert.match(
+  appSource,
+  /event\.key === "Escape"[\s\S]*exitFocusMode\(\)/,
+  "专注模式应支持按 Esc 退出",
+);
+assert.match(
+  appSource,
+  /state\.autoNextSeconds > 0[\s\S]*!state\.focusMode/,
+  "进入专注模式后应暂停自动换诗，避免打断阅读",
+);
+assert.match(
+  appSource,
+  /event\.key\.toLowerCase\(\) === "p"[\s\S]*enterFocusMode\(\)/,
+  "键盘用户应能用 P 进入专注模式",
+);
 assert.match(appSource, /function renderGlobalSearch\(\)/, "应支持渲染全库搜索结果");
 assert.match(appSource, /fetch\(`data\/poems\/search\.json/, "全文索引必须从扩展包本地加载");
 assert.match(appSource, /function openAuthorDialog\(poem\)/, "点击作者应支持打开人物简介");
@@ -944,6 +982,13 @@ assert.match(
 assert.match(extensionStyles, /\.secondary-actions/, "上一篇与复制操作应共享紧凑的次级操作区");
 assert.match(extensionStyles, /\.script-option/, "外观面板应提供简繁选项样式");
 assert.match(extensionStyles, /\.daily-trigger/, "应提供今日诗签控件样式");
+assert.match(extensionStyles, /\.focus-trigger/, "应提供专注模式入口样式");
+assert.match(extensionStyles, /\.focus-view/, "应提供纯原文专注阅读层样式");
+assert.match(
+  extensionStyles,
+  /\.focus-exit[\s\S]+width: 44px;[\s\S]+height: 44px;/,
+  "专注模式退出入口应保留足够的触控面积",
+);
 assert.match(extensionStyles, /\.auto-next-field/, "应提供自动下一首控件样式");
 assert.match(extensionStyles, /\.auto-next-progress-track/, "应提供自动下一首进度条样式");
 assert.match(extensionStyles, /\.library-panel/, "完整筛选应提供次级诗库抽屉样式");
