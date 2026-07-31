@@ -52,22 +52,21 @@
 
 ## 网页版与自定义域名
 
-推送 `main` 分支后，[GitHub Actions](.github/workflows/pages.yml) 会运行完整测试、生成静态站点，
-并发布到 `https://kua-fu.github.io/shiyi-yike/`。域名根路径使用构建时生成的 `index.html`，
-其内容与扩展的 `newtab.html` 完全一致。
+推送 `main` 分支后，GitHub Pages 会自动发布到
+`https://kua-fu.github.io/shiyi-yike/`。域名根路径的 `index.html` 会进入扩展共用的
+`newtab.html`，因此线上页面、扩展页面、样式、脚本及诗词数据完全一致。
 
-首次启用时：
+绑定自己的域名：
 
-1. 打开仓库的 `Settings → Pages`，将发布来源设为 `GitHub Actions`
-2. 等待“发布诗意一刻网页版”工作流完成，先确认默认 Pages 地址可以访问
-3. 在同一页面的 `Custom domain` 中填写自己的域名并保存
-4. 在域名服务商处配置 DNS：子域名使用 `CNAME` 指向 `kua-fu.github.io`；根域名按
+1. 打开仓库的 `Settings → Pages`，先确认默认 Pages 地址可以访问
+2. 在 `Custom domain` 中填写自己的域名并保存
+3. 在域名服务商处配置 DNS：子域名使用 `CNAME` 指向 `kua-fu.github.io`；根域名按
    [GitHub 官方说明](https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site/managing-a-custom-domain-for-your-github-pages-site)
    配置 `A`、`ALIAS` 或 `ANAME` 记录
-5. DNS 生效并签发证书后启用 `Enforce HTTPS`
+4. DNS 生效并签发证书后启用 `Enforce HTTPS`
 
-本项目通过 GitHub Actions 发布，因此不需要提交 `CNAME` 文件；域名在仓库 Pages 设置中管理。
-不要使用通配符 DNS 记录，以免留下域名接管风险。
+当前仓库从分支发布，GitHub 在保存自定义域名时会创建或更新根目录的 `CNAME` 文件；
+后续应保留该文件。不要使用通配符 DNS 记录，以免留下域名接管风险。
 
 ## 校验
 
@@ -116,8 +115,8 @@ npm run release:prepare
 .
 ├── manifest.json        # Chrome Manifest V3 配置
 ├── background.js        # 工具栏入口
+├── index.html           # GitHub Pages 域名根入口
 ├── newtab.html          # 工具栏打开的诗词阅读页
-├── .github/workflows/pages.yml # GitHub Pages 自动发布流程
 ├── app.js               # 逐句点注、回想练习、精读导览、诗库筛选、收藏与分享
 ├── share-poster.js      # 高清诗词海报、二维码内容与 PNG 文件名生成
 ├── reading-insights.js  # 今日诗签与本地阅读统计

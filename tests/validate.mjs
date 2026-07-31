@@ -24,6 +24,7 @@ assert.deepEqual(
 );
 
 const requiredFiles = [
+  "index.html",
   "newtab.html",
   manifest.background.service_worker,
   "app.js",
@@ -910,9 +911,16 @@ for (const releaseScript of [
 ]) {
   assert.ok(fs.existsSync(path.join(projectRoot, releaseScript)), `缺少发布流程文件：${releaseScript}`);
 }
-assert.ok(
-  fs.existsSync(path.join(projectRoot, ".github/workflows/pages.yml")),
-  "缺少 GitHub Pages 自动发布流程",
+const pagesEntryHtml = fs.readFileSync(path.join(projectRoot, "index.html"), "utf8");
+assert.match(
+  pagesEntryHtml,
+  /http-equiv="refresh" content="0; url=newtab\.html"/,
+  "GitHub Pages 域名根路径应自动进入扩展共用阅读页",
+);
+assert.match(
+  pagesEntryHtml,
+  /new URL\("newtab\.html", window\.location\.href\)/,
+  "GitHub Pages 根入口应兼容默认项目路径与自定义域名",
 );
 
 const extensionStyles = fs.readFileSync(path.join(projectRoot, "extension.css"), "utf8");
