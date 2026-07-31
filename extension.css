@@ -3370,3 +3370,505 @@ button:focus-visible {
     padding-block: 10px 12px;
   }
 }
+
+/* 手机端以“先读诗、再操作”为主：压缩顶栏，把筛选改为浮层，并保留完整触控尺寸。 */
+@media (width <= 650px) {
+  body {
+    min-height: 100dvh;
+  }
+
+  .masthead {
+    min-height: 64px;
+    padding:
+      max(10px, env(safe-area-inset-top))
+      max(12px, env(safe-area-inset-right))
+      10px
+      max(12px, env(safe-area-inset-left));
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    background: color-mix(in srgb, var(--paper) 84%, transparent);
+    backdrop-filter: blur(14px);
+  }
+
+  .brand {
+    gap: 10px;
+  }
+
+  .brand-mark {
+    width: 34px;
+    height: 34px;
+    flex-basis: 34px;
+    font-size: 16px;
+  }
+
+  .brand-title {
+    font-size: 19px;
+    letter-spacing: .12em;
+  }
+
+  .filters {
+    width: auto;
+    margin-left: auto;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    gap: 4px;
+    background: transparent;
+  }
+
+  .daily-trigger,
+  .search-trigger,
+  .theme-trigger,
+  .filter-favorites {
+    width: 42px;
+    min-width: 42px;
+    min-height: 42px;
+    flex: 0 0 42px;
+    padding: 0;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--surface);
+  }
+
+  .daily-trigger {
+    gap: 0;
+  }
+
+  .daily-trigger-mark {
+    width: 23px;
+    height: 23px;
+    font-size: 12px;
+    line-height: 21px;
+  }
+
+  .search-trigger-icon {
+    font-size: 21px;
+  }
+
+  .theme-trigger-swatch {
+    width: 19px;
+    height: 19px;
+    flex-basis: 19px;
+  }
+
+  /* 文案在窄屏只做视觉隐藏，按钮仍保留完整的无障碍名称。 */
+  .daily-trigger-name,
+  .search-trigger-name,
+  #theme-trigger-name,
+  .filter-favorites > span:first-child {
+    width: 1px;
+    height: 1px;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    position: absolute;
+    overflow: hidden;
+  }
+
+  .filter-favorites {
+    position: relative;
+  }
+
+  .filter-favorites::before {
+    content: "♡";
+    font: 500 21px/1 var(--serif);
+    letter-spacing: 0;
+  }
+
+  .filter-favorites[aria-pressed="true"]::before {
+    content: "♥";
+  }
+
+  .favorite-nav-count {
+    min-width: 17px;
+    height: 17px;
+    padding-inline: 4px;
+    border: 1px solid var(--paper);
+    font-size: 9px;
+    line-height: 15px;
+    position: absolute;
+    top: -4px;
+    right: -4px;
+  }
+
+  .library-panel {
+    z-index: 12;
+  }
+
+  .library-panel > summary {
+    min-height: 40px;
+    padding-left: max(14px, env(safe-area-inset-left));
+    padding-right: max(14px, env(safe-area-inset-right));
+    font-size: 11px;
+    letter-spacing: .1em;
+  }
+
+  .library-panel > summary::before {
+    width: 22px;
+    height: 22px;
+    line-height: 20px;
+  }
+
+  .library-panel[open] > summary {
+    box-shadow: 0 8px 20px #20252212;
+  }
+
+  /* 筛选打开时覆盖正文，不再把有限的手机阅读区整体向下挤。 */
+  .library-panel > .filter-panel {
+    max-height: calc(100dvh - 112px);
+    padding:
+      14px
+      max(14px, env(safe-area-inset-right))
+      16px
+      max(14px, env(safe-area-inset-left));
+    border-bottom: 1px solid var(--line);
+    background: color-mix(in srgb, var(--paper) 94%, transparent);
+    backdrop-filter: blur(18px);
+    box-shadow: 0 22px 38px #20252226;
+    position: absolute;
+    top: 100%;
+    right: 0;
+    left: 0;
+    overflow: hidden auto;
+  }
+
+  .select-field {
+    gap: 6px;
+  }
+
+  .select-field select {
+    height: 48px;
+    border-radius: 10px;
+    background: var(--surface-strong);
+    font-size: 16px;
+  }
+
+  .filter-result {
+    min-height: 48px;
+    padding-inline: 14px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    grid-column: 1 / -1;
+    justify-content: center;
+    background: var(--surface);
+  }
+
+  .clear-filter {
+    min-height: 44px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    grid-column: 1 / -1;
+    justify-self: stretch;
+  }
+
+  .content {
+    padding:
+      16px
+      max(16px, env(safe-area-inset-right))
+      0
+      max(16px, env(safe-area-inset-left));
+    gap: 8px;
+  }
+
+  .reading-scroll {
+    scroll-padding-block: 12px 24px;
+  }
+
+  .poem {
+    padding: 2px 2px 28px 0;
+  }
+
+  .eyebrow {
+    margin-bottom: 14px;
+  }
+
+  .eyebrow::before {
+    width: 22px;
+  }
+
+  .poem-title {
+    font-size: clamp(43px, 13vw, 54px);
+    line-height: 1.14;
+    letter-spacing: .055em;
+  }
+
+  .poem-title[data-long-title="true"] {
+    font-size: clamp(30px, 8.8vw, 39px);
+  }
+
+  .author-line {
+    margin: 14px 0 20px 2px;
+  }
+
+  .original-heading {
+    margin-bottom: 8px;
+    gap: 10px;
+  }
+
+  .verse-trigger {
+    min-height: 50px;
+  }
+
+  .poem-tags {
+    margin-top: 20px;
+  }
+
+  .translation-block,
+  .deep-reading-guide {
+    margin-top: 24px;
+  }
+
+  .poem-meta-row {
+    margin-top: 22px;
+    padding-top: 12px;
+  }
+
+  .side-panel {
+    padding: 10px 0 max(10px, env(safe-area-inset-bottom));
+    background: linear-gradient(180deg, transparent, var(--surface-soft));
+    box-shadow: 0 -12px 28px #2025220c;
+  }
+
+  .actions {
+    max-width: none;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .primary-actions {
+    grid-column: 1;
+    grid-row: 1;
+    grid-template-columns: minmax(100px, .72fr) minmax(150px, 1.28fr);
+    gap: 8px;
+  }
+
+  .primary,
+  .favorite-action {
+    min-height: 52px;
+    border-radius: 12px;
+  }
+
+  .primary {
+    padding-inline: 17px;
+  }
+
+  .favorite-action {
+    padding-inline: 10px;
+    font-size: 12px;
+  }
+
+  .secondary-actions {
+    grid-column: 1;
+    grid-row: 2;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .secondary-actions .previous-action,
+  .secondary-actions .copy-action,
+  .secondary-actions .share-action {
+    width: 100%;
+    height: 44px;
+    min-height: 44px;
+    border-radius: 10px;
+  }
+
+  .notice {
+    min-height: 14px;
+    grid-column: 1;
+    grid-row: 3;
+    font-size: 10px;
+  }
+
+  .poem-list-header,
+  .author-dialog-header,
+  .theme-dialog-header,
+  .learning-dialog-header,
+  .share-dialog-header {
+    min-height: 96px;
+    padding:
+      max(17px, env(safe-area-inset-top))
+      16px
+      14px;
+    background: color-mix(in srgb, var(--paper) 92%, transparent);
+    backdrop-filter: blur(16px);
+    position: sticky;
+    top: 0;
+    z-index: 5;
+  }
+
+  .poem-list-header h2,
+  .author-dialog-header h2,
+  .theme-dialog-header h2,
+  .learning-dialog-header h2,
+  .share-dialog-header h2 {
+    font-size: 25px;
+  }
+
+  .poem-list-header p,
+  .author-dialog-header p,
+  .theme-dialog-header p,
+  .learning-dialog-header p,
+  .share-dialog-header p {
+    margin-top: 6px;
+    font-size: 11px;
+  }
+
+  .poem-list-close,
+  .author-dialog-close,
+  .theme-dialog-close,
+  .learning-dialog-close,
+  .share-dialog-close {
+    width: 44px;
+    height: 44px;
+    flex-basis: 44px;
+    background: var(--surface-strong);
+  }
+
+  .poem-list-search {
+    height: 50px;
+    margin: 12px 14px 0;
+    border-radius: 12px;
+  }
+
+  .poem-list-search input,
+  .learning-answer-field input {
+    font-size: 16px;
+  }
+
+  .poem-list {
+    margin: 12px 6px max(10px, env(safe-area-inset-bottom)) 14px;
+    padding-right: 8px;
+  }
+
+  .poem-list-item {
+    min-height: 82px;
+    padding: 13px 14px;
+    border-radius: 10px;
+  }
+
+  .author-dialog-body {
+    padding: 22px 18px 16px;
+  }
+
+  .author-dialog-biography {
+    font-size: 16px;
+    line-height: 1.95;
+  }
+
+  .author-dialog-actions {
+    padding: 12px 18px max(18px, env(safe-area-inset-bottom));
+  }
+
+  .author-works-action {
+    min-height: 52px;
+    border-radius: 12px;
+  }
+
+  .theme-options {
+    padding: 14px 14px 0;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .theme-option {
+    min-height: 96px;
+    padding: 9px;
+    grid-template-columns: 44px minmax(0, 1fr);
+    gap: 8px;
+    border-radius: 10px;
+  }
+
+  .theme-preview {
+    width: 44px;
+    height: 66px;
+    padding: 5px;
+  }
+
+  .theme-preview-paper {
+    width: 32px;
+    height: 52px;
+  }
+
+  .theme-preview-seal {
+    right: 6px;
+    bottom: 8px;
+  }
+
+  .theme-option-copy {
+    gap: 5px;
+  }
+
+  .theme-option-copy strong {
+    font-size: 13px;
+  }
+
+  .font-section,
+  .script-section,
+  .reading-settings {
+    margin-inline: 14px;
+  }
+
+  .font-option,
+  .script-option {
+    border-radius: 10px;
+  }
+
+  .reading-settings .auto-next-field {
+    grid-template-columns: minmax(0, 1fr) 132px;
+  }
+
+  .auto-next-field select {
+    min-height: 40px;
+    font-size: 16px;
+  }
+
+  .share-dialog-body {
+    padding-inline: 16px;
+  }
+
+  .share-dialog-actions {
+    padding-inline: 16px;
+  }
+
+  button,
+  summary,
+  a,
+  select,
+  input {
+    touch-action: manipulation;
+  }
+}
+
+@media (width <= 360px) {
+  .brand-title {
+    width: 1px;
+    height: 1px;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    position: absolute;
+    overflow: hidden;
+  }
+
+  .masthead {
+    padding-right: max(10px, env(safe-area-inset-right));
+    padding-left: max(10px, env(safe-area-inset-left));
+  }
+
+  .primary-actions {
+    grid-template-columns: minmax(94px, .68fr) minmax(136px, 1.32fr);
+  }
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .primary:hover,
+  .favorite-action:hover,
+  .poem-list-item:hover,
+  .theme-option:hover,
+  .font-option:hover,
+  .script-option:hover,
+  .share-action:hover:not(:disabled) {
+    transform: none;
+    box-shadow: none;
+  }
+}
