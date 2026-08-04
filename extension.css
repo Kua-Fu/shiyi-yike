@@ -543,6 +543,24 @@
   letter-spacing: .12em;
 }
 
+.search-dialog[data-loading="true"] .search-empty::before {
+  content: "";
+  width: 22px;
+  height: 22px;
+  margin: 0 auto 14px;
+  border: 2px solid color-mix(in srgb, var(--line) 78%, transparent);
+  border-top-color: var(--cinnabar);
+  border-radius: 50%;
+  display: block;
+  animation: search-index-spin .72s linear infinite;
+}
+
+@keyframes search-index-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .author-filter {
   cursor: pointer;
 }
@@ -2332,6 +2350,101 @@ button:focus-visible {
   border-bottom: 0;
 }
 
+/* 首访引导覆盖在纸面右上角，不挤压正文；每一步只指向一个真实动作。 */
+.onboarding-guide {
+  z-index: 8;
+  width: min(560px, calc(100% - 140px));
+  min-height: 92px;
+  border: 1px solid color-mix(in srgb, var(--cinnabar) 42%, var(--line));
+  border-radius: 5px;
+  background:
+    linear-gradient(118deg, color-mix(in srgb, var(--paper-light) 94%, transparent), color-mix(in srgb, var(--paper-deep) 94%, transparent));
+  box-shadow: 0 18px 42px #312d2630;
+  padding: 16px 18px;
+  position: absolute;
+  top: 164px;
+  right: 70px;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  animation: ink-settle .35s both;
+}
+
+.onboarding-guide-mark {
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--cinnabar-dark);
+  border-radius: 3px;
+  color: var(--paper-light);
+  background: var(--cinnabar);
+  font: 600 17px/32px var(--kai);
+  text-align: center;
+  transform: rotate(-2deg);
+}
+
+.onboarding-guide-copy {
+  min-width: 0;
+}
+
+.onboarding-guide-step {
+  color: var(--cinnabar-dark);
+  font: 600 10px/1 var(--sans);
+  letter-spacing: .1em;
+  display: block;
+  margin-bottom: 6px;
+}
+
+.onboarding-guide-copy strong {
+  font: 600 16px/1.25 var(--serif);
+  letter-spacing: .05em;
+  display: block;
+}
+
+.onboarding-guide-copy p {
+  color: var(--ink-soft);
+  font: 400 12px/1.6 var(--sans);
+  letter-spacing: .02em;
+  margin: 5px 0 0;
+}
+
+.onboarding-guide-actions {
+  display: grid;
+  justify-items: stretch;
+  gap: 6px;
+}
+
+.onboarding-guide-action,
+.onboarding-guide-dismiss {
+  min-height: 34px;
+  border-radius: 3px;
+  cursor: pointer;
+  white-space: nowrap;
+  font: 600 11px/1 var(--sans);
+  letter-spacing: .05em;
+  padding: 0 12px;
+}
+
+.onboarding-guide-action {
+  border: 1px solid var(--ink);
+  color: var(--paper-light);
+  background: var(--ink);
+}
+
+.onboarding-guide-dismiss {
+  border: 0;
+  color: var(--ink-soft);
+  background: transparent;
+}
+
+.onboarding-guide-action:hover {
+  background: color-mix(in srgb, var(--ink) 88%, var(--moss));
+}
+
+.onboarding-guide-dismiss:hover {
+  color: var(--cinnabar-dark);
+}
+
 .original-heading {
   margin-bottom: 12px;
   display: flex;
@@ -2971,6 +3084,11 @@ button:focus-visible {
 }
 
 @media (width <= 1120px) {
+  .onboarding-guide {
+    width: min(520px, calc(100% - 72px));
+    right: 36px;
+  }
+
   .library-panel > summary {
     padding-inline: 36px;
   }
@@ -2985,6 +3103,31 @@ button:focus-visible {
 }
 
 @media (width <= 650px) {
+  .onboarding-guide {
+    width: auto;
+    min-height: 0;
+    padding: 14px;
+    position: fixed;
+    top: auto;
+    right: max(12px, env(safe-area-inset-right));
+    bottom: max(12px, env(safe-area-inset-bottom));
+    left: max(12px, env(safe-area-inset-left));
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 10px 12px;
+  }
+
+  .onboarding-guide-actions {
+    grid-column: 2;
+    grid-template-columns: max-content max-content;
+    justify-content: start;
+    align-items: center;
+  }
+
+  .onboarding-guide-action,
+  .onboarding-guide-dismiss {
+    min-height: 40px;
+  }
+
   .library-panel > summary {
     min-height: 42px;
     padding-inline: max(16px, env(safe-area-inset-right));
@@ -4199,6 +4342,17 @@ button:focus-visible {
 
 /* 手机横屏仍按阅读器处理：去掉桌面卷轴边框，并让诗库展开时覆盖正文而非继续压缩高度。 */
 @media (height <= 520px) and (width > 650px) and (width <= 950px) {
+  .onboarding-guide {
+    width: min(520px, calc(100% - 28px));
+    padding-block: 10px;
+    top: 92px;
+    right: 14px;
+  }
+
+  .onboarding-guide-copy p {
+    display: none;
+  }
+
   .stage {
     height: 100dvh;
     padding: 0;

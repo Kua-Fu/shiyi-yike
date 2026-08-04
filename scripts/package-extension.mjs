@@ -45,6 +45,7 @@ const runtimeEntries = [
   "data/deep-readings.json",
   "data/poems/startup.json",
   "data/poems/index.json",
+  "data/poems/search-reviewed.json",
   "data/poems/search.json",
   "data/poems/chunks",
   "data/sources",
@@ -111,6 +112,8 @@ try {
     "vendor/qrcode-generator/LICENSE",
     "data/poems/startup.json",
     "data/poems/index.json",
+    "data/poems/search-reviewed.json",
+    "data/poems/search.json",
     "data/deep-readings.json",
     "data/sources/content-license-audit.json",
   ]) {

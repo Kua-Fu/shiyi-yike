@@ -47,14 +47,45 @@ const records = index.poems.map((poem) => {
   ];
 });
 
-// 搜索索引只保留 ID 与标准化文本，既覆盖原文和译文，也避免复制完整诗词结构。
-await fs.writeFile(
-  path.join(poemDirectory, "search.json"),
-  `${JSON.stringify({
-    generatedAt: new Date().toISOString(),
-    count: records.length,
-    records,
-  })}\n`,
-);
+async function writeSearchIndex(filename, scopedRecords) {
+  const outputPath = path.join(poemDirectory, filename);
+  try {
+    const existing = JSON.parse(await fs.readFile(outputPath, "utf8"));
+    // 内容没有变化时保留原生成时间并跳过写盘，避免仅因构建时间不同制造数 MB 的无意义 diff。
+    if (
+      existing.count === scopedRecords.length &&
+      JSON.stringify(existing.records) === JSON.stringify(scopedRecords)
+    ) {
+      return false;
+    }
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+  }
 
-console.log(`✓ 已生成 ${records.length} 篇诗词的本地全文搜索索引`);
+  await fs.writeFile(
+    outputPath,
+    `${JSON.stringify({
+      generatedAt: new Date().toISOString(),
+      count: scopedRecords.length,
+      records: scopedRecords,
+    })}\n`,
+  );
+  return true;
+}
+
+const reviewedIds = new Set(
+  index.poems
+    .filter((poem) => poem.reviewStatus === "reviewed")
+    .map((poem) => poem.id),
+);
+const reviewedRecords = records.filter(([id]) => reviewedIds.has(id));
+
+// 938 篇精选索引服务常用搜索范围；只有用户明确进入全库时才读取 5334 篇全量索引。
+await Promise.all([
+  writeSearchIndex("search-reviewed.json", reviewedRecords),
+  writeSearchIndex("search.json", records),
+]);
+
+console.log(
+  `✓ 已生成 ${reviewedRecords.length} 篇精选与 ${records.length} 篇全库的分层搜索索引`,
+);

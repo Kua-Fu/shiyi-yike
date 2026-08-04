@@ -24,10 +24,13 @@ const AUTO_NEXT_KEY = "poem-auto-next-seconds-v1";
 const REVIEW_MODE_KEY = "poem-review-mode-v2";
 const READING_STATS_KEY = "poem-reading-stats-v1";
 const LEARNING_PROGRESS_KEY = "poem-learning-progress-v1";
+const ONBOARDING_KEY = "poem-onboarding-v1";
+const ONBOARDING_STEPS = new Set(["verse", "guide", "recall", "complete"]);
 // 自动切换首次使用时保持关闭；用户主动选择过的合法间隔仍会从本地设置恢复。
 const DEFAULT_AUTO_NEXT_SECONDS = 0;
 const AUTO_NEXT_INTERVALS = new Set([0, 30, 60, 120, 300, 600, 1200, 1800, 3600]);
 const MAX_SEARCH_RESULTS = 120;
+const SEARCH_INPUT_DEBOUNCE_MS = 140;
 const MAX_READING_HISTORY = 30;
 const FEEDBACK_ISSUE_URL = "https://github.com/Kua-Fu/shiyi-yike/issues/new";
 const PERIOD_ORDER = ["先秦", "汉魏六朝", "唐代", "宋代", "元代", "明代", "清代"];
@@ -128,8 +131,10 @@ const state = {
   learningProgress: normalizeLearningProgress(null),
   practice: null,
   chunks: new Map(),
-  searchRecordsPromise: null,
+  searchRecordsPromises: new Map(),
+  deepSearchRecords: [],
   searchRequestId: 0,
+  searchDebounceTimer: null,
   requestId: 0,
   busy: false,
   ready: false,
@@ -144,6 +149,8 @@ const state = {
   noticeDismissTimer: null,
   sharePosterPoemId: null,
   focusMode: false,
+  onboardingStep: "complete",
+  isFirstVisit: false,
 };
 
 const elements = {
@@ -251,6 +258,40 @@ const elements = {
   learningRatingButtons: [
     ...document.querySelectorAll("[data-learning-rating]"),
   ],
+  onboardingGuide: document.querySelector("#onboarding-guide"),
+  onboardingGuideMark: document.querySelector("#onboarding-guide-mark"),
+  onboardingGuideStep: document.querySelector("#onboarding-guide-step"),
+  onboardingGuideTitle: document.querySelector("#onboarding-guide-title"),
+  onboardingGuideDescription: document.querySelector("#onboarding-guide-description"),
+  onboardingGuideAction: document.querySelector("#onboarding-guide-action"),
+  onboardingGuideDismiss: document.querySelector("#onboarding-guide-dismiss"),
+};
+
+const ONBOARDING_COPY = {
+  verse: {
+    mark: "一",
+    step: "初次相逢 · 第 1 步 / 3",
+    title: "先读懂一句，不必急着背全文",
+    description: "轻点任一句原文，译文与难词会在原处展开。",
+    action: "找到第一句",
+    target: ".verse-trigger",
+  },
+  guide: {
+    mark: "二",
+    step: "已读懂一句 · 第 2 步 / 3",
+    title: "再看整首诗如何转折",
+    description: "展开精读导览，把背景、诗意与写法连成一条线。",
+    action: "找到精读导览",
+    target: ".deep-reading-summary",
+  },
+  recall: {
+    mark: "三",
+    step: "已读完导览 · 第 3 步 / 3",
+    title: "最后，用回想把它真正记住",
+    description: "不看原文补全诗句，完成后会自动安排下一次复习。",
+    action: "找到开始回想",
+    target: ".learning-card-action",
+  },
 };
 
 function displayText(value) {
@@ -275,6 +316,81 @@ function makeElement(tag, className, text) {
   if (className) element.className = className;
   if (text !== undefined) setLocalizedText(element, text);
   return element;
+}
+
+function loadOnboardingProgress() {
+  return new Promise((resolve) => {
+    const finish = (savedStep) => {
+      const hasSavedStep = ONBOARDING_STEPS.has(savedStep);
+      state.onboardingStep = hasSavedStep ? savedStep : "verse";
+      state.isFirstVisit = !hasSavedStep;
+      resolve();
+    };
+
+    if (!globalThis.chrome?.storage?.local) {
+      try {
+        finish(localStorage.getItem(ONBOARDING_KEY));
+      } catch {
+        finish(null);
+      }
+      return;
+    }
+
+    chrome.storage.local.get([ONBOARDING_KEY], (result) => {
+      finish(result[ONBOARDING_KEY]);
+    });
+  });
+}
+
+function saveOnboardingProgress() {
+  if (globalThis.chrome?.storage?.local) {
+    chrome.storage.local.set({ [ONBOARDING_KEY]: state.onboardingStep });
+    return;
+  }
+  try {
+    localStorage.setItem(ONBOARDING_KEY, state.onboardingStep);
+  } catch {
+    // 首访提示只是辅助体验；隐私模式禁用存储时，不影响诗词阅读与学习主流程。
+  }
+}
+
+function renderOnboardingGuide() {
+  const copy = ONBOARDING_COPY[state.onboardingStep];
+  const canGuideCurrentPoem = Boolean(state.current?.deepReading);
+  elements.onboardingGuide.hidden = !copy || !canGuideCurrentPoem;
+  if (!copy || !canGuideCurrentPoem) return;
+
+  elements.onboardingGuide.dataset.step = state.onboardingStep;
+  setLocalizedText(elements.onboardingGuideMark, copy.mark);
+  setLocalizedText(elements.onboardingGuideStep, copy.step);
+  setLocalizedText(elements.onboardingGuideTitle, copy.title);
+  setLocalizedText(elements.onboardingGuideDescription, copy.description);
+  setLocalizedText(elements.onboardingGuideAction, copy.action);
+}
+
+function advanceOnboarding(expectedStep, nextStep) {
+  if (state.onboardingStep !== expectedStep) return;
+  state.onboardingStep = nextStep;
+  saveOnboardingProgress();
+  renderOnboardingGuide();
+}
+
+function focusOnboardingTarget() {
+  const copy = ONBOARDING_COPY[state.onboardingStep];
+  const target = copy ? elements.poem.querySelector(copy.target) : null;
+  if (!(target instanceof HTMLElement)) return;
+  target.scrollIntoView({
+    block: "center",
+    behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+  });
+  target.focus({ preventScroll: true });
+}
+
+function dismissOnboarding() {
+  state.onboardingStep = "complete";
+  saveOnboardingProgress();
+  renderOnboardingGuide();
+  updateNotice("引导已收起，随时按自己的节奏赏读");
 }
 
 function updateAppearanceTrigger() {
@@ -1042,7 +1158,9 @@ function setBusy(busy) {
   elements.authorSelect.disabled = libraryBusy || !poemsInCurrentCategory().length;
   elements.tagSelect.disabled = libraryBusy || !poemsInCurrentCategory().length;
   elements.resultTrigger.disabled = libraryBusy || !filteredPoems().length;
-  elements.searchTrigger.disabled = libraryBusy || !state.index.length;
+  // 默认精读搜索只依赖 100 篇首屏数据，可先于 1.6 MB 完整诗库开放；其他范围仍等待作品元数据就绪。
+  elements.searchTrigger.disabled =
+    busy || !state.index.length || (state.reviewMode !== "deep" && !state.libraryReady);
   elements.focusTrigger.disabled = busy || !state.current;
   renderDailyAction();
   elements.favoriteAction.disabled = busy || !state.current;
@@ -1188,40 +1306,107 @@ function normalizeSearchValue(value) {
     .trim();
 }
 
-async function loadSearchRecords() {
-  if (!state.searchRecordsPromise) {
-    // 全文索引仅在用户打开搜索后按需读取，避免每个新标签页都解析额外数据。
-    state.searchRecordsPromise = fetch(`data/poems/search.json?v=${DATA_VERSION}`)
+function createEmbeddedSearchRecord(poem) {
+  return {
+    id: poem.id,
+    text: normalizeSearchValue([
+      poem.title,
+      poem.author,
+      poem.dynasty,
+      poem.period,
+      poem.category,
+      poem.form,
+      ...poem.tags,
+      ...poem.lines,
+      ...poem.translation,
+    ].join(" ")),
+    excerpt: poem.lines.slice(0, 2).join(" "),
+  };
+}
+
+function searchIndexScope(mode = state.reviewMode) {
+  if (mode === "deep") return "deep";
+  return mode === "all" ? "all" : "reviewed";
+}
+
+async function loadSearchRecords(mode = state.reviewMode) {
+  const scope = searchIndexScope(mode);
+  // 默认 100 篇精读已包含在首屏数据中，不再为第一次搜索追加任何网络或磁盘请求。
+  if (scope === "deep") return state.deepSearchRecords;
+
+  if (!state.searchRecordsPromises.has(scope)) {
+    const filename = scope === "reviewed" ? "search-reviewed.json" : "search.json";
+    const expectedCount = scope === "reviewed"
+      ? state.reviewCounts.reviewed
+      : state.reviewCounts.all;
+    const pending = fetch(`data/poems/${filename}?v=${DATA_VERSION}`)
       .then((response) => {
         if (!response.ok) throw new Error(`搜索索引读取失败：${response.status}`);
         return response.json();
       })
       .then((data) => {
-        if (!Array.isArray(data.records) || data.records.length !== state.index.length) {
+        if (!Array.isArray(data.records) || data.records.length !== expectedCount) {
           throw new Error("搜索索引与诗库数量不一致");
         }
         return data.records.map(([id, text, excerpt]) => ({ id, text, excerpt }));
       })
       .catch((error) => {
-        state.searchRecordsPromise = null;
+        state.searchRecordsPromises.delete(scope);
         throw error;
       });
+    state.searchRecordsPromises.set(scope, pending);
   }
-  return state.searchRecordsPromise;
+  return state.searchRecordsPromises.get(scope);
+}
+
+function warmSearchRecords() {
+  if (!state.index.length) return;
+  // hover、键盘聚焦或按下入口时预热当前范围；失败后仍允许正式打开搜索时重新请求。
+  void loadSearchRecords(state.reviewMode).catch(() => {});
+}
+
+function setSearchLoading(loading) {
+  elements.searchResults.setAttribute("aria-busy", String(loading));
+  if (loading) elements.searchDialog.dataset.loading = "true";
+  else delete elements.searchDialog.dataset.loading;
+}
+
+function cancelScheduledGlobalSearch() {
+  if (!state.searchDebounceTimer) return;
+  clearTimeout(state.searchDebounceTimer);
+  state.searchDebounceTimer = null;
+}
+
+function scheduleGlobalSearch() {
+  state.searchRequestId += 1;
+  cancelScheduledGlobalSearch();
+  if (!normalizeSearchValue(elements.globalSearchInput.value)) {
+    void renderGlobalSearch();
+    return;
+  }
+  // 中文输入法合成和连续键入期间不反复扫描数千条记录，停顿一瞬后只执行最后一次查询。
+  state.searchDebounceTimer = window.setTimeout(() => {
+    state.searchDebounceTimer = null;
+    void renderGlobalSearch();
+  }, SEARCH_INPUT_DEBOUNCE_MS);
 }
 
 function searchScore(poem, record, query) {
-  const title = normalizeSearchValue(poem.title);
-  const author = normalizeSearchValue(poem.author);
-  if (title === query) return 100;
-  if (author === query) return 90;
-  if (title.includes(query)) return 80;
-  if (author.includes(query)) return 70;
-  if (poem.tags.some((tag) => normalizeSearchValue(tag) === query)) return 50;
+  record.scoreMeta ??= {
+    title: normalizeSearchValue(poem.title),
+    author: normalizeSearchValue(poem.author),
+    tags: poem.tags.map(normalizeSearchValue),
+  };
+  if (record.scoreMeta.title === query) return 100;
+  if (record.scoreMeta.author === query) return 90;
+  if (record.scoreMeta.title.includes(query)) return 80;
+  if (record.scoreMeta.author.includes(query)) return 70;
+  if (record.scoreMeta.tags.includes(query)) return 50;
   return record.text.indexOf(query) >= 0 ? 20 : 10;
 }
 
 async function renderGlobalSearch() {
+  cancelScheduledGlobalSearch();
   const query = normalizeSearchValue(elements.globalSearchInput.value);
   const requestId = ++state.searchRequestId;
   const searchableCount = reviewModeCount();
@@ -1229,6 +1414,7 @@ async function renderGlobalSearch() {
   elements.searchResults.hidden = true;
 
   if (!query) {
+    setSearchLoading(false);
     setLocalizedText(elements.searchSummary, "题目、作者、原文、译文与标签均可搜索");
     setLocalizedText(elements.searchEmpty, "输入几个字，循着诗句与古人相逢");
     elements.searchEmpty.hidden = false;
@@ -1238,9 +1424,10 @@ async function renderGlobalSearch() {
   setLocalizedText(elements.searchSummary, `正在检索当前范围的 ${searchableCount} 篇诗词…`);
   setLocalizedText(elements.searchEmpty, "正在循句寻诗…");
   elements.searchEmpty.hidden = false;
+  setSearchLoading(true);
 
   try {
-    const records = await loadSearchRecords();
+    const records = await loadSearchRecords(state.reviewMode);
     if (requestId !== state.searchRequestId) return;
     const terms = query.split(" ");
     const matches = records
@@ -1291,9 +1478,11 @@ async function renderGlobalSearch() {
         ? `找到 ${matches.length} 篇，显示前 ${MAX_SEARCH_RESULTS} 篇`
         : `找到 ${matches.length} 篇`,
     );
+    setSearchLoading(false);
   } catch (error) {
     if (requestId !== state.searchRequestId) return;
     console.error(error);
+    setSearchLoading(false);
     setLocalizedText(elements.searchSummary, "搜索索引暂未能展开");
     setLocalizedText(elements.searchEmpty, "搜索暂不可用，请稍后重试");
   }
@@ -1301,6 +1490,8 @@ async function renderGlobalSearch() {
 
 async function openGlobalSearch() {
   clearAutoNextTimer();
+  cancelScheduledGlobalSearch();
+  const preparationRequestId = ++state.searchRequestId;
   elements.globalSearchInput.value = "";
   setLocalizedText(elements.searchSummary, "正在准备本地全文索引…");
   elements.searchResults.replaceChildren();
@@ -1308,15 +1499,23 @@ async function openGlobalSearch() {
   const searchableCount = reviewModeCount();
   setLocalizedText(elements.searchEmpty, `正在展开当前范围的 ${searchableCount} 篇诗词…`);
   elements.searchEmpty.hidden = false;
+  setSearchLoading(true);
   elements.searchDialog.showModal();
   elements.globalSearchInput.focus();
   try {
-    await loadSearchRecords();
-    if (!elements.searchDialog.open) return;
+    await loadSearchRecords(state.reviewMode);
+    if (
+      !elements.searchDialog.open ||
+      preparationRequestId !== state.searchRequestId ||
+      normalizeSearchValue(elements.globalSearchInput.value)
+    ) return;
+    setSearchLoading(false);
     setLocalizedText(elements.searchSummary, "题目、作者、原文、译文与标签均可搜索");
     setLocalizedText(elements.searchEmpty, "输入几个字，循着诗句与古人相逢");
   } catch (error) {
+    if (preparationRequestId !== state.searchRequestId) return;
     console.error(error);
+    setSearchLoading(false);
     setLocalizedText(elements.searchSummary, "搜索索引暂未能展开");
     setLocalizedText(elements.searchEmpty, "搜索暂不可用，请稍后重试");
   }
@@ -1592,6 +1791,7 @@ function createOriginal(poem) {
         "aria-label",
         `${expanded ? "展开" : "收起"}第 ${lineIndex + 1} 句译文与难词`,
       );
+      if (!expanded) advanceOnboarding("verse", "guide");
     });
     study.append(button, panel);
     verses.append(study);
@@ -1647,6 +1847,9 @@ function createDeepReadingGuide(poem) {
   );
   body.append(background, guide, sourceSection);
   block.append(summary, body);
+  block.addEventListener("toggle", () => {
+    if (block.open) advanceOnboarding("guide", "recall");
+  });
   return block;
 }
 
@@ -1709,7 +1912,10 @@ function createLearningCard(poem) {
     "aria-label",
     `${entry ? "再次回想" : "开始学习"}《${poem.title}》`,
   );
-  action.addEventListener("click", () => openLearningPractice(poem));
+  action.addEventListener("click", () => {
+    advanceOnboarding("recall", "complete");
+    openLearningPractice(poem);
+  });
   card.append(mark, copy, action);
   return card;
 }
@@ -1916,6 +2122,7 @@ function renderPoem(poem, options = {}) {
   renderFavorite();
   renderPreviousAction();
   renderDailyAction();
+  renderOnboardingGuide();
   if (options.scroll !== false) {
     elements.readingScroll.scrollTo({
       top: 0,
@@ -2827,15 +3034,20 @@ function bindEvents() {
   });
 
   elements.searchTrigger.addEventListener("click", openGlobalSearch);
+  elements.searchTrigger.addEventListener("pointerenter", warmSearchRecords);
+  elements.searchTrigger.addEventListener("pointerdown", warmSearchRecords);
+  elements.searchTrigger.addEventListener("focus", warmSearchRecords);
   elements.focusTrigger.addEventListener("click", enterFocusMode);
   elements.focusExit.addEventListener("click", exitFocusMode);
   elements.searchDialogClose.addEventListener("click", () => elements.searchDialog.close());
-  elements.globalSearchInput.addEventListener("input", renderGlobalSearch);
+  elements.globalSearchInput.addEventListener("input", scheduleGlobalSearch);
   elements.searchDialog.addEventListener("click", (event) => {
     if (event.target === elements.searchDialog) elements.searchDialog.close();
   });
   elements.searchDialog.addEventListener("close", () => {
+    cancelScheduledGlobalSearch();
     state.searchRequestId += 1;
+    setSearchLoading(false);
     scheduleAutoNext();
     elements.searchTrigger.focus({ preventScroll: true });
   });
@@ -2871,6 +3083,8 @@ function bindEvents() {
   });
   elements.shareCopyAction.addEventListener("click", copySharePoster);
   elements.shareDownloadAction.addEventListener("click", shareOrDownloadPoster);
+  elements.onboardingGuideAction.addEventListener("click", focusOnboardingTarget);
+  elements.onboardingGuideDismiss.addEventListener("click", dismissOnboarding);
 
   document.addEventListener("keydown", (event) => {
     const target = event.target;
@@ -2961,6 +3175,7 @@ function applyStartupData(data) {
     }
   }
 
+  state.deepSearchRecords = data.poems.map(createEmbeddedSearchRecord);
   state.deepReadings = new Map(
     data.poems.map((poem) => [poem.id, poem.deepReading]),
   );
@@ -3050,15 +3265,22 @@ async function initialize() {
       loadReviewModePreference(),
       loadReadingStats(),
       loadLearningProgress(),
+      loadOnboardingProgress(),
     ]);
     if (!startupResponse.ok) {
       throw new Error(`首屏精读数据读取失败：${startupResponse.status}`);
     }
     applyStartupData(await startupResponse.json());
     normalizeLearningLibrary();
+    // 首次打开先给出稳定的今日诗签，保证首访文案、引导与用户实际看到的内容一致；以后仍保留随机相逢。
+    const initialPoem = state.isFirstVisit
+      ? dailyActionTarget().poem
+      : chooseRandom(filteredPoems());
     await showPoem(
-      chooseRandom(filteredPoems()),
-      "精读诗笺已展开 · 完整诗库继续在后台准备",
+      initialPoem,
+      state.isFirstVisit
+        ? "今日诗签已展开 · 轻点一句开始精读"
+        : "精读诗笺已展开 · 完整诗库继续在后台准备",
     );
     state.ready = true;
 

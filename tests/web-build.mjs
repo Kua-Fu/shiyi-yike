@@ -13,16 +13,39 @@ const build = spawnSync(process.execPath, ["scripts/build-web.mjs"], {
 assert.equal(build.status, 0, build.stderr || build.stdout);
 
 const siteRoot = path.join(projectRoot, "dist", "site");
-const sourceHtml = fs.readFileSync(path.join(projectRoot, "newtab.html"), "utf8");
+const sourceLanding = fs.readFileSync(path.join(projectRoot, "index.html"), "utf8");
+const sourceReader = fs.readFileSync(path.join(projectRoot, "newtab.html"), "utf8");
 const sourceApp = fs.readFileSync(path.join(projectRoot, "app.js"), "utf8");
-const deployedHtml = fs.readFileSync(path.join(siteRoot, "index.html"), "utf8");
-assert.equal(deployedHtml, sourceHtml, "网页版首页必须与扩展阅读页完全一致");
+const deployedLanding = fs.readFileSync(path.join(siteRoot, "index.html"), "utf8");
+const deployedReader = fs.readFileSync(path.join(siteRoot, "newtab.html"), "utf8");
+assert.equal(deployedLanding, sourceLanding, "网页版首页必须发布独立获客页");
+assert.equal(deployedReader, sourceReader, "在线体验页必须与扩展阅读页完全一致");
+assert.match(
+  deployedLanding,
+  /从读懂一句，到记住一首/,
+  "官网首屏应直接表达从精读到记忆的核心价值",
+);
+assert.match(
+  deployedLanding,
+  /href="newtab\.html\?from=hero"/,
+  "官网首屏应提供零门槛在线体验入口",
+);
+assert.match(
+  deployedLanding,
+  /chromewebstore\.google\.com\/search/,
+  "官网应提供指向官方 Chrome 商店的安装入口",
+);
+assert.match(deployedLanding, /rel="canonical" href="https:\/\/poetries\.cn\/"/, "官网应声明规范网址");
+assert.match(deployedLanding, /property="og:title"/, "官网应提供社交分享摘要");
+assert.match(deployedLanding, /social-card-1400x560\.png/, "社交分享应使用兼容性更稳妥的 PNG 主视觉");
+assert.match(deployedLanding, /"@type": "SoftwareApplication"/, "官网应提供软件结构化数据");
+assert.doesNotMatch(deployedLanding, /href="\/"/, "官网内链应兼容 GitHub Pages 项目子路径");
 
 // 手机端依赖安全区视口、覆盖式筛选和不小于 44px 的次级操作区，避免后续样式整理时退回拥挤布局。
 const responsiveCss = fs.readFileSync(path.join(projectRoot, "extension.css"), "utf8");
-assert.match(sourceHtml, /viewport-fit=cover/, "手机端应延伸到刘海屏安全区");
+assert.match(sourceReader, /viewport-fit=cover/, "手机端应延伸到刘海屏安全区");
 assert.match(
-  sourceHtml,
+  sourceReader,
   /id="search-trigger"[^>]+aria-label="搜索诗词"/,
   "图标化后的手机搜索入口必须保留无障碍名称",
 );
@@ -37,12 +60,12 @@ assert.match(
   "手机端次级操作必须保留足够的触控高度",
 );
 assert.match(
-  sourceHtml,
+  sourceReader,
   /id="favorite-label-short"[^>]*>收藏</,
   "窄屏收藏按钮应提供不会折行的短标签",
 );
 assert.match(
-  sourceHtml,
+  sourceReader,
   /class="previous-label-short">上一首</,
   "窄屏上一篇按钮应完整显示“上一首”",
 );
@@ -74,16 +97,25 @@ assert.match(
 
 for (const requiredEntry of [
   ".nojekyll",
+  "newtab.html",
+  "privacy.html",
+  "landing.css",
+  "robots.txt",
+  "sitemap.xml",
+  "CNAME",
   "app.js",
   "share-poster.js",
   "styles.css",
   "extension.css",
   "assets/icons/icon-32.png",
+  "assets/store/promo-marquee.svg",
+  "assets/store/social-card-1400x560.png",
   "assets/fonts/ZhiMangXing-Regular.ttf",
   "vendor/opencc-js/full.js",
   "vendor/qrcode-generator/qrcode.mjs",
   "data/poems/startup.json",
   "data/poems/index.json",
+  "data/poems/search-reviewed.json",
   "data/poems/search.json",
   "data/deep-readings.json",
 ]) {
@@ -106,4 +138,4 @@ for (const privateEntry of [
   );
 }
 
-console.log("✓ 网页发布产物可从根路径加载，并与扩展阅读页保持一致");
+console.log("✓ 网页获客首页与扩展共用的在线阅读器均可从发布产物加载");

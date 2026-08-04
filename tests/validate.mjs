@@ -11,6 +11,9 @@ const readJson = (relativePath) =>
 const manifest = readJson("manifest.json");
 assert.equal(manifest.manifest_version, 3, "扩展必须使用 Manifest V3");
 assert.equal(manifest.version, "1.15.0");
+assert.equal(manifest.short_name, "诗意一刻", "工具栏应保留简短品牌名");
+assert.match(manifest.name, /古诗词精读与记忆/, "商店名称应直接说明产品用途");
+assert.match(manifest.description, /逐句读懂古诗词/, "商店短描述应从用户收益出发");
 assert.equal(
   manifest.chrome_url_overrides,
   undefined,
@@ -25,6 +28,9 @@ assert.deepEqual(
 
 const requiredFiles = [
   "index.html",
+  "landing.css",
+  "privacy.html",
+  "STORE_LISTING.md",
   "newtab.html",
   manifest.background.service_worker,
   "app.js",
@@ -35,6 +41,7 @@ const requiredFiles = [
   "extension.css",
   "data/deep-readings.json",
   "data/poems/startup.json",
+  "data/poems/search-reviewed.json",
   "assets/fonts/ZhiMangXing-Regular.ttf",
   "assets/fonts/ZhiMangXing-OFL.txt",
   "vendor/opencc-js/full.js",
@@ -99,6 +106,18 @@ assert.equal(searchIndex.records.length, 5334);
 const searchIds = new Set(searchIndex.records.map(([id]) => id));
 assert.equal(searchIds.size, 5334, "全文搜索索引 ID 必须唯一");
 for (const id of indexIds) assert.ok(searchIds.has(id), `全文搜索索引缺少诗词：${id}`);
+const reviewedSearchIndex = readJson("data/poems/search-reviewed.json");
+assert.equal(reviewedSearchIndex.count, 938, "精选搜索索引应只包含已校作品");
+assert.equal(reviewedSearchIndex.records.length, 938);
+assert.ok(
+  reviewedSearchIndex.records.every(([id]) => indexById.get(id)?.reviewStatus === "reviewed"),
+  "精选搜索索引不得混入待校或 AI 辅助作品",
+);
+assert.ok(
+  fs.statSync(path.join(projectRoot, "data/poems/search-reviewed.json")).size <
+    fs.statSync(path.join(projectRoot, "data/poems/search.json")).size / 4,
+  "常用精选索引应显著小于全量索引",
+);
 assert.ok(
   searchIndex.records.some(([, text]) => text.includes("床前明月光")),
   "全文搜索索引应能命中原文诗句",
@@ -560,6 +579,8 @@ assert.match(
 assert.match(newTabHtml, /id="focus-view"/, "专注模式应提供独立的纯原文阅读层");
 assert.match(newTabHtml, /id="focus-exit"/, "触屏用户应能直接退出专注模式");
 assert.match(newTabHtml, /id="daily-trigger"/, "顶部应提供今日诗签入口");
+assert.match(newTabHtml, /id="onboarding-guide"/, "首次打开应提供不遮断阅读的渐进引导");
+assert.match(newTabHtml, /id="onboarding-guide-dismiss"/, "首访引导应允许用户立即跳过");
 assert.match(newTabHtml, /id="daily-trigger-mark"/, "今日入口应能切换为到期复习状态");
 assert.match(newTabHtml, /id="learning-dialog"/, "精读作品应提供逐句回想弹层");
 assert.match(newTabHtml, /id="learning-answer"/, "逐句回想应要求用户先写下答案");
@@ -750,7 +771,18 @@ assert.match(
   "键盘用户应能用 P 进入专注模式",
 );
 assert.match(appSource, /function renderGlobalSearch\(\)/, "应支持渲染全库搜索结果");
-assert.match(appSource, /fetch\(`data\/poems\/search\.json/, "全文索引必须从扩展包本地加载");
+assert.match(appSource, /return state\.deepSearchRecords/, "默认精读搜索应直接复用首屏数据");
+assert.match(
+  appSource,
+  /state\.reviewMode !== "deep" && !state\.libraryReady/,
+  "默认精读搜索应先于完整诗库开放",
+);
+assert.match(appSource, /search-reviewed\.json/, "已校精选搜索应读取轻量分层索引");
+assert.match(appSource, /scope === "reviewed" \? "search-reviewed\.json" : "search\.json"/, "只有全库搜索才应读取全量索引");
+assert.match(appSource, /function warmSearchRecords\(\)/, "用户靠近搜索入口时应预热当前索引");
+assert.match(appSource, /const SEARCH_INPUT_DEBOUNCE_MS = 140/, "连续输入时应使用短防抖减少重复扫描");
+assert.match(appSource, /function scheduleGlobalSearch\(\)/, "全文搜索输入应统一调度最后一次查询");
+assert.match(newTabHtml, /id="search-results"[^>]+aria-busy="false"/, "搜索结果应向辅助技术暴露加载状态");
 assert.match(appSource, /function openAuthorDialog\(poem\)/, "点击作者应支持打开人物简介");
 assert.match(appSource, /function showActiveAuthorWorks\(\)/, "人物简介应可进入作者作品筛选");
 assert.match(appSource, /fetch\(`data\/authors\.json/, "作者资料必须从扩展包本地加载");
@@ -849,6 +881,15 @@ assert.match(
   "练习结束页应向用户解释严格的掌握门槛",
 );
 assert.match(appSource, /function loadLearningProgress\(\)/, "重新打开页面时应恢复本地学习进度");
+assert.match(appSource, /const ONBOARDING_KEY = "poem-onboarding-v1"/, "首访引导状态应使用独立存储键");
+assert.match(appSource, /function advanceOnboarding\(expectedStep, nextStep\)/, "首访引导应随真实操作逐步推进");
+assert.match(
+  appSource,
+  /state\.isFirstVisit[\s\S]+dailyActionTarget\(\)\.poem/,
+  "第一次打开应展示稳定的今日诗签而非随机内容",
+);
+assert.match(appSource, /advanceOnboarding\("verse", "guide"\)/, "点开诗句后应引导用户阅读篇章导览");
+assert.match(appSource, /advanceOnboarding\("guide", "recall"\)/, "展开导览后应引导用户主动回想");
 assert.match(appSource, /function dueLearningPoems\(\)/, "今日入口应优先处理到期复习");
 assert.match(
   appSource,
@@ -994,14 +1035,15 @@ for (const releaseScript of [
 const pagesEntryHtml = fs.readFileSync(path.join(projectRoot, "index.html"), "utf8");
 assert.match(
   pagesEntryHtml,
-  /http-equiv="refresh" content="0; url=newtab\.html"/,
-  "GitHub Pages 域名根路径应自动进入扩展共用阅读页",
+  /id="hero-title"[\s\S]+从读懂一句，到记住一首/,
+  "GitHub Pages 域名根路径应直接说明产品核心价值",
 );
 assert.match(
   pagesEntryHtml,
-  /new URL\("newtab\.html", window\.location\.href\)/,
-  "GitHub Pages 根入口应兼容默认项目路径与自定义域名",
+  /href="newtab\.html\?from=hero"/,
+  "官网首屏应保留进入扩展共用阅读页的获客入口",
 );
+assert.doesNotMatch(pagesEntryHtml, /http-equiv="refresh"/, "官网不得再用自动跳转跳过产品说明");
 
 const extensionStyles = fs.readFileSync(path.join(projectRoot, "extension.css"), "utf8");
 assert.match(extensionStyles, /height <= 820px/, "应适配商店截图常用的 1280×800 视口");

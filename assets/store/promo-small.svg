@@ -18,10 +18,10 @@
   <rect x="53" y="53" width="38" height="38" rx="3" fill="none" stroke="#fff8ee" stroke-opacity=".28"/>
   <text x="72" y="82" text-anchor="middle" fill="#fff8ee" font-family="'Kaiti SC','STKaiti','KaiTi',serif" font-size="28" font-weight="700">诗</text>
   <text x="116" y="78" fill="#202522" font-family="'Songti SC','STSong','Noto Serif CJK SC',serif" font-size="29" font-weight="600" letter-spacing="5">诗意一刻</text>
-  <text x="117" y="103" fill="#5f665f" font-family="'PingFang SC','Microsoft YaHei',sans-serif" font-size="10" letter-spacing="2">先秦至清 · 938 篇已校精选</text>
+  <text x="117" y="103" fill="#5f665f" font-family="'PingFang SC','Microsoft YaHei',sans-serif" font-size="10" letter-spacing="1.6">100 篇深度精读 · 本地间隔复习</text>
   <line x1="49" y1="132" x2="261" y2="132" stroke="#c9c1af"/>
-  <text x="49" y="169" fill="#202522" font-family="'Songti SC','STSong','Noto Serif CJK SC',serif" font-size="18" letter-spacing="2">轻点工具栏图标</text>
-  <text x="49" y="201" fill="#202522" font-family="'Songti SC','STSong','Noto Serif CJK SC',serif" font-size="18" letter-spacing="2">与古人不期而遇</text>
+  <text x="49" y="169" fill="#202522" font-family="'Songti SC','STSong','Noto Serif CJK SC',serif" font-size="18" letter-spacing="2">从读懂一句</text>
+  <text x="49" y="201" fill="#202522" font-family="'Songti SC','STSong','Noto Serif CJK SC',serif" font-size="18" letter-spacing="2">到真正记住一首</text>
   <line x1="49" y1="226" x2="82" y2="226" stroke="#9f3f32" stroke-width="2"/>
-  <text x="94" y="230" fill="#9f3f32" font-family="'PingFang SC','Microsoft YaHei',sans-serif" font-size="10" font-weight="600" letter-spacing="2">已校精选 · 全库广览</text>
+  <text x="94" y="230" fill="#9f3f32" font-family="'PingFang SC','Microsoft YaHei',sans-serif" font-size="10" font-weight="600" letter-spacing="2">逐句点注 · 主动回想</text>
 </svg>

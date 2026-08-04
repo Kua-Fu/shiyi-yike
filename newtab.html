@@ -82,6 +82,19 @@
             </section>
           </details>
 
+          <section id="onboarding-guide" class="onboarding-guide" aria-labelledby="onboarding-guide-title" hidden>
+            <span id="onboarding-guide-mark" class="onboarding-guide-mark" aria-hidden="true">一</span>
+            <div class="onboarding-guide-copy">
+              <span id="onboarding-guide-step" class="onboarding-guide-step">初次相逢 · 第 1 步 / 3</span>
+              <strong id="onboarding-guide-title">先读懂一句，不必急着背全文</strong>
+              <p id="onboarding-guide-description">轻点任一句原文，译文与难词会在原处展开。</p>
+            </div>
+            <div class="onboarding-guide-actions">
+              <button id="onboarding-guide-action" class="onboarding-guide-action" type="button">找到第一句</button>
+              <button id="onboarding-guide-dismiss" class="onboarding-guide-dismiss" type="button">跳过引导</button>
+            </div>
+          </section>
+
           <div class="content">
             <aside class="folio" aria-hidden="true">
               <span id="folio-no" class="folio-no">卷之0001 · 随机诗笺</span>
@@ -505,7 +518,7 @@
           <span class="poem-list-search-icon" aria-hidden="true">⌕</span>
           <input id="global-search-input" type="search" placeholder="输入题目、作者或一句诗" autocomplete="off">
         </label>
-        <div id="search-results" class="poem-list" aria-label="诗词搜索结果" hidden></div>
+        <div id="search-results" class="poem-list" aria-label="诗词搜索结果" aria-busy="false" hidden></div>
         <p id="search-empty" class="poem-list-empty" role="status">输入几个字，循着诗句与古人相逢</p>
       </section>
     </dialog>

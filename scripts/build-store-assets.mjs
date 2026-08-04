@@ -56,5 +56,9 @@ await fs.copyFile(
   path.join(projectRoot, "assets/icons/icon-128.png"),
   path.join(outputDirectory, "store-icon-128.png"),
 );
+await fs.copyFile(
+  path.join(projectRoot, "STORE_LISTING.md"),
+  path.join(outputDirectory, "STORE_LISTING.md"),
+);
 
 console.log(`商店图已生成：${path.relative(projectRoot, outputDirectory)}`);
