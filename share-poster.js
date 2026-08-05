@@ -3,46 +3,10 @@ import { stringToBytes as utf8StringToBytes } from "./vendor/qrcode-generator/qr
 
 const POSTER_WIDTH = 1080;
 const POSTER_HEIGHT = 1440;
-const MAX_QR_BYTES = 300;
-const PROJECT_URL = "https://github.com/Kua-Fu/shiyi-yike";
+const PROJECT_URL = "https://poetries.cn";
 
-const encoder = new TextEncoder();
-
-function utf8Length(value) {
-  return encoder.encode(String(value ?? "")).length;
-}
-
-export function truncateTextToBytes(value, maxBytes) {
-  let result = "";
-  let usedBytes = 0;
-  for (const character of String(value ?? "")) {
-    const characterBytes = utf8Length(character);
-    if (usedBytes + characterBytes > maxBytes) break;
-    result += character;
-    usedBytes += characterBytes;
-  }
-  return result;
-}
-
-export function buildShareQrText(poem) {
-  const title = truncateTextToBytes(poem.title, 72);
-  const author = truncateTextToBytes(
-    [poem.dynasty, poem.author].filter(Boolean).join(" · "),
-    54,
-  );
-  const header = `《${title}》\n${author}\n`;
-  const footer = `\n\n来自「诗意一刻」\n${PROJECT_URL}`;
-  const sourceBody = (poem.lines ?? []).join("\n");
-  const bodyBudget = Math.max(
-    0,
-    MAX_QR_BYTES - utf8Length(header) - utf8Length(footer) - utf8Length("……"),
-  );
-  const body = truncateTextToBytes(sourceBody, bodyBudget);
-  const wasTruncated = body.length < sourceBody.length;
-  const qrText = `${header}${body}${wasTruncated ? "……" : ""}${footer}`;
-
-  // 标题和作者也设有上限；该兜底保证任何异常输入都不会生成超出容量的二维码。
-  return truncateTextToBytes(qrText, MAX_QR_BYTES);
+export function buildShareQrText() {
+  return PROJECT_URL;
 }
 
 export function createQrMatrix(text) {
@@ -319,18 +283,14 @@ export function createSharePoster(canvas, poem, appearance = {}) {
   context.font = `400 20px ${serif}`;
   context.fillText("每日一诗 · 逐句精读", 206, 1223);
   context.font = `400 17px ${serif}`;
-  context.fillText(
-    poemLayout.excerpt ? "长篇原文已节选，扫码可识别本篇" : "扫码识诗 · 留住此刻诗意",
-    206,
-    1272,
-  );
+  context.fillText("扫码访问官网 · 邂逅更多诗意", 206, 1272);
 
-  const qrText = buildShareQrText(poem);
+  const qrText = buildShareQrText();
   drawQrCode(context, qrText, 738, 1124, 220);
   context.fillStyle = colors.inkSoft;
   context.font = `500 17px ${serif}`;
   context.textAlign = "center";
-  context.fillText("扫码识诗", 848, 1380);
+  context.fillText("扫码访问官网", 848, 1380);
 
   return { excerpt: poemLayout.excerpt, qrText };
 }

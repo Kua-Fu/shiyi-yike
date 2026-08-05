@@ -3076,7 +3076,7 @@ async function openShareDialog() {
     elements.shareDownloadAction.disabled = false;
     setLocalizedText(
       elements.shareDialogStatus,
-      "高清 PNG 已生成；二维码包含本篇题目、作者、诗句节选与项目入口。",
+      "高清 PNG 已生成；二维码可直接访问诗意一刻官网。",
     );
     elements.shareDownloadAction.focus({ preventScroll: true });
   } catch (error) {
