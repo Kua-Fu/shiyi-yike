@@ -19,7 +19,7 @@
     "build:store-assets": "node scripts/build-store-assets.mjs",
     "build:web": "node scripts/build-web.mjs",
     "package:extension": "node scripts/package-extension.mjs",
-    "test": "node tests/validate.mjs && node tests/deep-readings.mjs && node tests/learning-progress.mjs && node tests/background.mjs && node tests/reading-insights.mjs && node tests/share-poster.mjs && node tests/web-build.mjs",
+    "test": "node tests/validate.mjs && node tests/deep-readings.mjs && node tests/learning-progress.mjs && node tests/poem-puzzle.mjs && node tests/background.mjs && node tests/reading-insights.mjs && node tests/share-poster.mjs && node tests/web-build.mjs",
     "release:prepare": "npm test && npm run build:store-assets && npm run package:extension"
   },
   "devDependencies": {

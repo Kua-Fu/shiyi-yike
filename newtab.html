@@ -145,6 +145,10 @@
                     <span class="previous-label-full">← 上一篇</span>
                     <span class="previous-label-short">上一首</span>
                   </button>
+                  <button id="puzzle-action" class="puzzle-action" type="button" aria-haspopup="dialog" aria-controls="puzzle-dialog" aria-label="用当前诗篇开始诗句拼图" disabled>
+                    <span class="puzzle-label-full">诗句拼图</span>
+                    <span class="puzzle-label-short">拼图</span>
+                  </button>
                   <button id="copy-action" class="copy-action" type="button" disabled>
                     <span class="copy-label-full">复制全文</span>
                     <span class="copy-label-short">复制</span>
@@ -481,6 +485,63 @@
             </button>
           </fieldset>
           <p id="learning-rating-hint" class="learning-rating-hint"></p>
+        </div>
+      </section>
+    </dialog>
+
+    <dialog id="puzzle-dialog" class="puzzle-dialog" aria-labelledby="puzzle-dialog-title">
+      <section class="puzzle-dialog-shell">
+        <header class="puzzle-dialog-header">
+          <div>
+            <div class="puzzle-dialog-kicker">移字成诗</div>
+            <h2 id="puzzle-dialog-title">诗句拼图</h2>
+            <p id="puzzle-dialog-meta">选择彩色拼片，再把它放入拼图板的合适位置。</p>
+          </div>
+          <button id="puzzle-dialog-close" class="puzzle-dialog-close" type="button" aria-label="关闭诗句拼图">×</button>
+        </header>
+        <div id="puzzle-practice" class="puzzle-practice">
+          <div class="puzzle-progress-row">
+            <span id="puzzle-step">第 1 / 1 题</span>
+            <span
+              id="puzzle-progress-track"
+              class="puzzle-progress-track"
+              role="progressbar"
+              aria-label="诗句拼图进度"
+              aria-valuemin="0"
+              aria-valuemax="1"
+              aria-valuenow="0"
+            >
+              <span id="puzzle-progress-fill" class="puzzle-progress-fill"></span>
+            </span>
+          </div>
+          <p class="puzzle-instruction">可直接拖动拼片到板上；也可先点拼片，再点空位。板内拼片支持拖动换位。</p>
+          <div id="puzzle-answer" class="puzzle-answer" role="group" aria-label="诗句拼图板">
+            <span id="puzzle-answer-empty" class="puzzle-answer-empty">选一块彩色拼片，嵌入拼图板</span>
+          </div>
+          <div class="puzzle-bank-heading">
+            <span>散落拼片</span>
+            <span id="puzzle-remaining">0 块</span>
+          </div>
+          <div id="puzzle-bank" class="puzzle-bank" role="group" aria-label="尚未放入拼图板的彩色拼片"></div>
+          <div id="puzzle-result" class="puzzle-result" role="status" aria-live="polite" hidden>
+            <strong id="puzzle-result-title"></strong>
+            <p id="puzzle-result-answer"></p>
+          </div>
+          <div class="puzzle-step-actions">
+            <button id="puzzle-reset" class="puzzle-reset" type="button" disabled>清空拼图</button>
+            <button id="puzzle-check" class="puzzle-check" type="button" disabled>核对次序</button>
+            <button id="puzzle-next" class="puzzle-next" type="button" hidden>下一题</button>
+          </div>
+        </div>
+        <div id="puzzle-complete" class="puzzle-complete" hidden>
+          <div class="puzzle-complete-mark" aria-hidden="true">成</div>
+          <h3>这一局拼图完成</h3>
+          <p id="puzzle-score"></p>
+          <p id="puzzle-complete-note" class="puzzle-complete-note"></p>
+          <div class="puzzle-complete-actions">
+            <button id="puzzle-replay" class="puzzle-replay" type="button">再玩一局</button>
+            <button id="puzzle-finish" class="puzzle-finish" type="button">回到诗篇</button>
+          </div>
         </div>
       </section>
     </dialog>

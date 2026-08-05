@@ -16,6 +16,7 @@ const runtimeEntries = [
   "share-poster.js",
   "reading-insights.js",
   "learning-progress.js",
+  "poem-puzzle.js",
   "styles.css",
   "extension.css",
   "robots.txt",

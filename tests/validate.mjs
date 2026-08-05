@@ -37,6 +37,7 @@ const requiredFiles = [
   "share-poster.js",
   "reading-insights.js",
   "learning-progress.js",
+  "poem-puzzle.js",
   "styles.css",
   "extension.css",
   "data/deep-readings.json",

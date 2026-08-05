@@ -70,6 +70,71 @@ assert.match(
   "窄屏上一篇按钮应完整显示“上一首”",
 );
 assert.match(
+  sourceReader,
+  /id="puzzle-answer"[^>]+aria-label="诗句拼图板"/,
+  "诗句拼图应提供可访问的二维拼图板",
+);
+assert.match(
+  responsiveCss,
+  /\.puzzle-answer \{[\s\S]+grid-template-columns: repeat\(var\(--puzzle-columns\), var\(--puzzle-slot-size\)\);/,
+  "诗句拼图必须使用二维网格，不能退回横向字块队列",
+);
+assert.match(
+  responsiveCss,
+  /\.puzzle-piece-text \{[\s\S]+width: 48%;[\s\S]+font-size: \.86em;/,
+  "拼片文字应限制在中央安全区，避免覆盖榫口边框",
+);
+assert.match(
+  responsiveCss,
+  /@media \(width <= 650px\)[\s\S]+\.puzzle-answer \{[\s\S]+--puzzle-slot-size: 68px;/,
+  "手机端拼图板应保持足够大的操作与展示尺寸",
+);
+assert.match(
+  sourceApp,
+  /createPuzzleShape\([\s\S]+createJigsawPath\([\s\S]+PUZZLE_PIECE_COLORS/,
+  "拼片应使用互补榫口轮廓和多种底色",
+);
+assert.match(
+  sourceApp,
+  /resolvePuzzleShapeIndex\([\s\S]+zone === "answer" \? slotIndex : null[\s\S]+createPuzzleShape\(shapeIndex/,
+  "拼片进入拼图板后应使用槽位轮廓，避免文字顺序与板槽造型互相冲突",
+);
+assert.match(
+  sourceApp,
+  /addEventListener\("pointerdown"[\s\S]+elementFromPoint[\s\S]+movePuzzlePieceToSlot[\s\S]+window\.addEventListener\("pointermove"/,
+  "拼片应使用同时兼容鼠标与触屏的 Pointer Events 完成拖放",
+);
+assert.match(
+  responsiveCss,
+  /\.puzzle-piece \{[\s\S]+touch-action: none;[\s\S]+\.puzzle-drag-ghost \{[\s\S]+pointer-events: none;/,
+  "拖动拼片应阻止触屏滚动抢占，并提供跟手的拖动预览",
+);
+const puzzlePaletteSource = sourceApp.match(
+  /const PUZZLE_PIECE_COLORS = \[([\s\S]*?)\];/,
+);
+assert.ok(puzzlePaletteSource, "诗句拼图应定义独立的拼片色板");
+const puzzlePalette = puzzlePaletteSource[1].match(/#[0-9a-f]{6}/gi) ?? [];
+assert.ok(puzzlePalette.length >= 6, "诗句拼图应保留足够多的可辨识底色");
+for (const color of puzzlePalette) {
+  const channels = color
+    .slice(1)
+    .match(/.{2}/g)
+    .map((channel) => Number.parseInt(channel, 16));
+  const lightness = (Math.max(...channels) + Math.min(...channels)) / 510;
+  const chroma = Math.max(...channels) - Math.min(...channels);
+  assert.ok(lightness >= 0.64 && chroma <= 120, `拼片底色 ${color} 应保持柔和、不过度刺眼`);
+}
+assert.ok(
+  puzzlePalette.some((color) => {
+    const channels = color
+      .slice(1)
+      .match(/.{2}/g)
+      .map((channel) => Number.parseInt(channel, 16));
+    return Math.max(...channels) - Math.min(...channels) >= 85;
+  }),
+  "拼片色板应包含更鲜明的颜色，避免整体过灰",
+);
+assert.match(
   responsiveCss,
   /\.filter-favorites::before[\s\S]+width: 22px;[\s\S]+height: 22px;[\s\S]+mask:/,
   "手机顶栏收藏图标应使用固定比例图形，避免字体心形被纵向拉长",
@@ -105,6 +170,7 @@ for (const requiredEntry of [
   "CNAME",
   "app.js",
   "share-poster.js",
+  "poem-puzzle.js",
   "styles.css",
   "extension.css",
   "assets/icons/icon-32.png",
