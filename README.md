@@ -4,12 +4,10 @@
 
 ## 在线体验
 
-- [在线阅读](https://poetries.cn)：无需注册或安装，直接进入网页版。
-- [安装 Chrome 扩展](https://chromewebstore.google.com/detail/%E8%AF%97%E6%84%8F%E4%B8%80%E5%88%BB%EF%BD%9C%E5%8F%A4%E8%AF%97%E8%AF%8D%E7%B2%BE%E8%AF%BB%E4%B8%8E%E8%AE%B0%E5%BF%86/lkkinajncnbimchpnkfkgmncpbiamgpm)：安装后固定到工具栏，点击图标即可打开独立阅读页。
+[![网页体验](https://img.shields.io/badge/-%E7%BD%91%E9%A1%B5%E4%BD%93%E9%AA%8C-2F6F5E?style=for-the-badge&logo=googleearth&logoColor=white)](https://poetries.cn)
+[![Chrome 插件](https://img.shields.io/badge/-Chrome%20%E6%8F%92%E4%BB%B6-4285F4?style=for-the-badge&logo=googlechrome&logoColor=white)](https://chromewebstore.google.com/detail/%E8%AF%97%E6%84%8F%E4%B8%80%E5%88%BB%EF%BD%9C%E5%8F%A4%E8%AF%97%E8%AF%8D%E7%B2%BE%E8%AF%BB%E4%B8%8E%E8%AE%B0%E5%BF%86/lkkinajncnbimchpnkfkgmncpbiamgpm)
 
 [![诗意一刻网页版运行效果](assets/readme/web-reader.jpg)](https://poetries.cn)
-
-_网页版运行效果：从诗词原文展开逐句译文、难词点注与学习入口。_
 
 ## 核心功能
 
