@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "source": "ZhiMangXing-Regular.ttf",
+  "sourceSha256": "644e0cae9b40f0b10ab729a01bd32032e3973bac22be3dccae01bf6ae7fde969",
+  "output": "ZhiMangXing-Subset.woff2",
+  "outputSha256": "43b748a37f19dbeb182e6375357984abda367379fd68be173d9e57858a2c558f",
+  "characterCount": 7379,
+  "sourceBytes": 4063532,
+  "outputBytes": 1875192
+}

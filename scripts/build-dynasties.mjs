@@ -2,13 +2,11 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { gunzipSync } from "node:zlib";
 import { fileURLToPath } from "node:url";
+import { fetchLockedAsset } from "./lib/upstream-lock.mjs";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const poemDirectory = path.join(projectRoot, "data/poems");
 const chunkDirectory = path.join(poemDirectory, "chunks");
-const sourceCommit = "409df701b3f91a41c87e5979b092c8c3c42c2123";
-const sourceUrl =
-  `https://raw.githubusercontent.com/yht050511/gushiwen/${sourceCommit}/gushiwen.json.gz`;
 
 const stageConfigs = [
   {
@@ -231,11 +229,8 @@ function periodFor(poem) {
 }
 
 async function fetchSourceRecords() {
-  const response = await fetch(sourceUrl);
-  if (!response.ok) {
-    throw new Error(`历代诗词下载失败：${response.status} ${sourceUrl}`);
-  }
-  return JSON.parse(gunzipSync(Buffer.from(await response.arrayBuffer())).toString("utf8"));
+  const bytes = await fetchLockedAsset(projectRoot, "gushiwen.corpus");
+  return JSON.parse(gunzipSync(bytes).toString("utf8"));
 }
 
 const indexPath = path.join(poemDirectory, "index.json");

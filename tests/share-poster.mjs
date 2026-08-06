@@ -6,6 +6,7 @@ import {
 } from "../share-poster.js";
 
 const poem = {
+  id: "seed-tang-jing-ye-si",
   title: "静夜思",
   dynasty: "唐",
   author: "李白",
@@ -16,15 +17,11 @@ const poem = {
 };
 
 const qrText = buildShareQrText();
-assert.equal(qrText, "https://poetries.cn", "二维码应只包含官网地址");
+assert.equal(qrText, "https://poetries.cn/newtab.html", "没有作品 ID 时应回到在线阅读器");
 assert.equal(
-  buildShareQrText({
-    ...poem,
-    title: "很长的题目".repeat(30),
-    lines: ["天地玄黄，宇宙洪荒。".repeat(300)],
-  }),
-  "https://poetries.cn",
-  "二维码内容不应随诗词变化",
+  buildShareQrText(poem),
+  "https://poetries.cn/newtab.html?poem=seed-tang-jing-ye-si",
+  "二维码应直达当前作品而非停在官网首页",
 );
 
 assert.equal(buildShareFileName(poem), "诗意一刻-静夜思-李白.png");
@@ -33,8 +30,8 @@ assert.equal(
   "诗意一刻-水调歌头明月-苏轼.png",
 );
 
-const matrix = createQrMatrix(qrText);
-assert.equal(matrix.size, 25, "短官网地址应生成低密度二维码以提升识别率");
+const matrix = createQrMatrix(buildShareQrText(poem));
+assert.ok(matrix.size <= 41, "作品深链接仍应保持适合海报扫描的二维码密度");
 assert.equal(typeof matrix.isDark(0, 0), "boolean");
 assert.equal(matrix.isDark(0, 0), true, "二维码左上角应包含定位图案");
 

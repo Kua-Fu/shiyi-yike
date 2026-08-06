@@ -16,6 +16,8 @@ const siteRoot = path.join(projectRoot, "dist", "site");
 const sourceLanding = fs.readFileSync(path.join(projectRoot, "index.html"), "utf8");
 const sourceReader = fs.readFileSync(path.join(projectRoot, "newtab.html"), "utf8");
 const sourceApp = fs.readFileSync(path.join(projectRoot, "app.js"), "utf8");
+const sourceConfig = fs.readFileSync(path.join(projectRoot, "reader-config.js"), "utf8");
+const sourceRouting = fs.readFileSync(path.join(projectRoot, "reader-routing.js"), "utf8");
 const deployedLanding = fs.readFileSync(path.join(siteRoot, "index.html"), "utf8");
 const deployedReader = fs.readFileSync(path.join(siteRoot, "newtab.html"), "utf8");
 assert.equal(deployedLanding, sourceLanding, "网页版首页必须发布独立获客页");
@@ -32,13 +34,25 @@ assert.match(
 );
 assert.match(
   deployedLanding,
-  /chromewebstore\.google\.com\/search/,
-  "官网应提供指向官方 Chrome 商店的安装入口",
+  /chromewebstore\.google\.com\/detail\/[^"]+\/lkkinajncnbimchpnkfkgmncpbiamgpm/,
+  "官网安装入口应直达官方 Chrome 商店详情页",
+);
+assert.match(deployedReader, /id="web-install-prompt"[^>]+hidden/, "在线体验应内置延迟出现的扩展安装邀请");
+assert.match(sourceConfig, /webInstallDismissed: "web-install-dismissed-v1"/, "安装邀请关闭状态应可持久保存");
+assert.match(sourceConfig, /POEM_LIST_PAGE_SIZE = 120/, "全库列表应设置稳定的分批大小");
+assert.match(sourceApp, /new Worker\(workerUrl, \{ type: "module"/, "在线全文搜索应在 Worker 中运行");
+assert.match(sourceReader, /id="author-input"[^>]+role="combobox"/, "在线诗库应提供可搜索作者选择");
+assert.match(sourceRouting, /function requestedPoemId\(/, "在线阅读器应支持作品深链接");
+assert.match(
+  sourceApp,
+  /elements\.libraryPanel\.addEventListener\("toggle"[\s\S]+ensureFullLibrary\(\)/,
+  "在线体验不应在首屏后自动请求完整诗库",
 );
 assert.match(deployedLanding, /rel="canonical" href="https:\/\/poetries\.cn\/"/, "官网应声明规范网址");
 assert.match(deployedLanding, /property="og:title"/, "官网应提供社交分享摘要");
 assert.match(deployedLanding, /social-card-1400x560\.png/, "社交分享应使用兼容性更稳妥的 PNG 主视觉");
 assert.match(deployedLanding, /"@type": "SoftwareApplication"/, "官网应提供软件结构化数据");
+assert.match(deployedLanding, /href="poems\/">浏览 100 篇精读目录/, "官网应提供静态精读目录入口");
 assert.doesNotMatch(deployedLanding, /href="\/"/, "官网内链应兼容 GitHub Pages 项目子路径");
 
 // 手机端依赖安全区视口、覆盖式筛选和不小于 44px 的次级操作区，避免后续样式整理时退回拥挤布局。
@@ -109,7 +123,7 @@ assert.match(
   /\.puzzle-piece \{[\s\S]+touch-action: none;[\s\S]+\.puzzle-drag-ghost \{[\s\S]+pointer-events: none;/,
   "拖动拼片应阻止触屏滚动抢占，并提供跟手的拖动预览",
 );
-const puzzlePaletteSource = sourceApp.match(
+const puzzlePaletteSource = sourceConfig.match(
   /const PUZZLE_PIECE_COLORS = \[([\s\S]*?)\];/,
 );
 assert.ok(puzzlePaletteSource, "诗句拼图应定义独立的拼片色板");
@@ -165,10 +179,18 @@ for (const requiredEntry of [
   "newtab.html",
   "privacy.html",
   "landing.css",
+  "poem-page.css",
   "robots.txt",
   "sitemap.xml",
   "CNAME",
   "app.js",
+  "author-library.js",
+  "reader-config.js",
+  "reader-routing.js",
+  "reader-appearance.css",
+  "storage-adapter.js",
+  "search-core.js",
+  "search-worker.js",
   "share-poster.js",
   "poem-puzzle.js",
   "styles.css",
@@ -176,7 +198,8 @@ for (const requiredEntry of [
   "assets/icons/icon-32.png",
   "assets/store/promo-marquee.svg",
   "assets/store/social-card-1400x560.png",
-  "assets/fonts/ZhiMangXing-Regular.ttf",
+  "assets/fonts/ZhiMangXing-Subset.woff2",
+  "assets/fonts/ZhiMangXing-Subset.meta.json",
   "vendor/opencc-js/full.js",
   "vendor/qrcode-generator/qrcode.mjs",
   "data/poems/startup.json",
@@ -190,6 +213,21 @@ for (const requiredEntry of [
     `网页发布产物缺少：${requiredEntry}`,
   );
 }
+
+const poemDirectory = path.join(siteRoot, "poems");
+const poemPages = fs.readdirSync(poemDirectory, { withFileTypes: true })
+  .filter((entry) => entry.isDirectory());
+assert.equal(poemPages.length, 100, "网页构建应生成 100 篇独立精读详情页");
+const firstPoemPage = fs.readFileSync(
+  path.join(poemDirectory, poemPages[0].name, "index.html"),
+  "utf8",
+);
+assert.match(firstPoemPage, /rel="canonical" href="https:\/\/poetries\.cn\/poems\//, "精读页应提供独立规范链接");
+assert.match(firstPoemPage, /<script type="application\/ld\+json">/, "精读页应提供 JSON-LD 结构化数据");
+assert.match(firstPoemPage, /<h2 id="translation-title">白话译文<\/h2>/, "精读页应直接输出译文而非空壳");
+const sitemap = fs.readFileSync(path.join(siteRoot, "sitemap.xml"), "utf8");
+assert.equal((sitemap.match(/<url>/g) ?? []).length, 103, "sitemap 应包含首页、目录、100 篇精读和隐私页");
+assert.equal(fs.existsSync(path.join(siteRoot, "assets/fonts/ZhiMangXing-Regular.ttf")), false, "网页发布产物不应继续携带原始 TTF");
 
 for (const privateEntry of [
   "manifest.json",

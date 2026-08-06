@@ -1,0 +1,2 @@
+# 只用于重建已提交的 WOFF2 子集；扩展和网页运行时不依赖 Python。
+fonttools[woff]==4.59.0

@@ -3,10 +3,13 @@ import { stringToBytes as utf8StringToBytes } from "./vendor/qrcode-generator/qr
 
 const POSTER_WIDTH = 1080;
 const POSTER_HEIGHT = 1440;
-const PROJECT_URL = "https://poetries.cn";
+const PROJECT_READER_URL = "https://poetries.cn/newtab.html";
 
-export function buildShareQrText() {
-  return PROJECT_URL;
+export function buildShareQrText(poem = {}) {
+  const url = new URL(PROJECT_READER_URL);
+  const poemId = String(poem.id ?? "").trim();
+  if (poemId) url.searchParams.set("poem", poemId);
+  return url.toString();
 }
 
 export function createQrMatrix(text) {
@@ -283,14 +286,14 @@ export function createSharePoster(canvas, poem, appearance = {}) {
   context.font = `400 20px ${serif}`;
   context.fillText("每日一诗 · 逐句精读", 206, 1223);
   context.font = `400 17px ${serif}`;
-  context.fillText("扫码访问官网 · 邂逅更多诗意", 206, 1272);
+  context.fillText("扫码直达本篇 · 邂逅更多诗意", 206, 1272);
 
-  const qrText = buildShareQrText();
+  const qrText = buildShareQrText(poem);
   drawQrCode(context, qrText, 738, 1124, 220);
   context.fillStyle = colors.inkSoft;
   context.font = `500 17px ${serif}`;
   context.textAlign = "center";
-  context.fillText("扫码访问官网", 848, 1380);
+  context.fillText("扫码直达本篇", 848, 1380);
 
   return { excerpt: poemLayout.excerpt, qrText };
 }

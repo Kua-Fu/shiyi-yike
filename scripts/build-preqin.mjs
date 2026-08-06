@@ -2,16 +2,11 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { gunzipSync } from "node:zlib";
 import { fileURLToPath } from "node:url";
+import { fetchLockedAsset, fetchLockedJson } from "./lib/upstream-lock.mjs";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const poemDirectory = path.join(projectRoot, "data/poems");
 const chunkDirectory = path.join(poemDirectory, "chunks");
-const shijingUrl =
-  "https://raw.githubusercontent.com/chinese-poetry/chinese-poetry/master/%E8%AF%97%E7%BB%8F/shijing.json";
-const chuciUrl =
-  "https://raw.githubusercontent.com/chinese-poetry/chinese-poetry/master/%E6%A5%9A%E8%BE%9E/chuci.json";
-const translationUrl =
-  "https://raw.githubusercontent.com/yht050511/gushiwen/409df701b3f91a41c87e5979b092c8c3c42c2123/gushiwen.json.gz";
 const groupTranslationPath = path.join(
   projectRoot,
   "data/sources/preqin-group-translations.json",
@@ -29,18 +24,6 @@ const chuciDynasties = {
   庄忌: "西汉",
   王逸: "东汉",
 };
-
-async function fetchJson(url) {
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`先秦典籍下载失败：${response.status} ${url}`);
-  return response.json();
-}
-
-async function fetchGzipJson(url) {
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`先秦译文下载失败：${response.status} ${url}`);
-  return JSON.parse(gunzipSync(Buffer.from(await response.arrayBuffer())).toString("utf8"));
-}
 
 function unique(values) {
   return [...new Set(values.filter(Boolean))];
@@ -275,9 +258,10 @@ function buildCollection(records, prefix, metadataFor, translationFor) {
 const indexPath = path.join(poemDirectory, "index.json");
 const index = JSON.parse(await fs.readFile(indexPath, "utf8"));
 const [shijing, chuci, translationRecords, groupTranslations] = await Promise.all([
-  fetchJson(shijingUrl),
-  fetchJson(chuciUrl),
-  fetchGzipJson(translationUrl),
+  fetchLockedJson(projectRoot, "chinese-poetry.shijing"),
+  fetchLockedJson(projectRoot, "chinese-poetry.chuci"),
+  fetchLockedAsset(projectRoot, "gushiwen.corpus")
+    .then((bytes) => JSON.parse(gunzipSync(bytes).toString("utf8"))),
   fs.readFile(groupTranslationPath, "utf8").then(JSON.parse),
 ]);
 const translationFor = buildTranslationResolver(translationRecords, groupTranslations);

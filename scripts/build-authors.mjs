@@ -2,14 +2,9 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import * as OpenCC from "opencc-js";
+import { fetchLockedJson } from "./lib/upstream-lock.mjs";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const tangAuthorsUrl =
-  "https://raw.githubusercontent.com/chinese-poetry/chinese-poetry/master/%E5%85%A8%E5%94%90%E8%AF%97/authors.tang.json";
-const songPoetsUrl =
-  "https://raw.githubusercontent.com/chinese-poetry/chinese-poetry/master/%E5%85%A8%E5%94%90%E8%AF%97/authors.song.json";
-const songAuthorsUrl =
-  "https://raw.githubusercontent.com/chinese-poetry/chinese-poetry/master/%E5%AE%8B%E8%AF%8D/author.song.json";
 const toSimplified = OpenCC.Converter({ from: "tw", to: "cn" });
 
 function compactText(value = "") {
@@ -70,12 +65,6 @@ function firstUsableProfile(...profiles) {
   return profiles.find((profile) => compactText(profile?.biography ?? "").length >= 8);
 }
 
-async function fetchJson(url) {
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`作者资料下载失败：${response.status} ${url}`);
-  return response.json();
-}
-
 const index = JSON.parse(
   await fs.readFile(path.join(projectRoot, "data/poems/index.json"), "utf8"),
 );
@@ -86,9 +75,9 @@ const supplementalData = JSON.parse(
   ),
 );
 const [tangAuthors, songPoets, songAuthors] = await Promise.all([
-  fetchJson(tangAuthorsUrl),
-  fetchJson(songPoetsUrl),
-  fetchJson(songAuthorsUrl),
+  fetchLockedJson(projectRoot, "chinese-poetry.tang-authors"),
+  fetchLockedJson(projectRoot, "chinese-poetry.song-poets"),
+  fetchLockedJson(projectRoot, "chinese-poetry.song-authors"),
 ]);
 
 const tangProfiles = new Map(

@@ -34,6 +34,13 @@ const requiredFiles = [
   "newtab.html",
   manifest.background.service_worker,
   "app.js",
+  "author-library.js",
+  "reader-config.js",
+  "reader-routing.js",
+  "reader-appearance.css",
+  "storage-adapter.js",
+  "search-core.js",
+  "search-worker.js",
   "share-poster.js",
   "reading-insights.js",
   "learning-progress.js",
@@ -43,7 +50,8 @@ const requiredFiles = [
   "data/deep-readings.json",
   "data/poems/startup.json",
   "data/poems/search-reviewed.json",
-  "assets/fonts/ZhiMangXing-Regular.ttf",
+  "assets/fonts/ZhiMangXing-Subset.woff2",
+  "assets/fonts/ZhiMangXing-Subset.meta.json",
   "assets/fonts/ZhiMangXing-OFL.txt",
   "vendor/opencc-js/full.js",
   "vendor/opencc-js/LICENSE",
@@ -582,6 +590,9 @@ assert.match(newTabHtml, /id="focus-exit"/, "触屏用户应能直接退出专�
 assert.match(newTabHtml, /id="daily-trigger"/, "顶部应提供今日诗签入口");
 assert.match(newTabHtml, /id="onboarding-guide"/, "首次打开应提供不遮断阅读的渐进引导");
 assert.match(newTabHtml, /id="onboarding-guide-dismiss"/, "首访引导应允许用户立即跳过");
+assert.match(newTabHtml, /id="web-install-prompt"[^>]+hidden/, "网页版安装邀请默认不应打断阅读");
+assert.match(newTabHtml, /id="web-install-dismiss"/, "网页版安装邀请应允许永久关闭");
+assert.match(newTabHtml, /id="poem-list-more"[^>]+hidden/, "大诗库列表应提供分批显示入口");
 assert.match(newTabHtml, /id="daily-trigger-mark"/, "今日入口应能切换为到期复习状态");
 assert.match(newTabHtml, /id="learning-dialog"/, "精读作品应提供逐句回想弹层");
 assert.match(newTabHtml, /id="learning-answer"/, "逐句回想应要求用户先写下答案");
@@ -592,6 +603,12 @@ assert.match(
 );
 assert.match(newTabHtml, /id="search-dialog"/, "应提供全库诗词搜索弹层");
 assert.match(newTabHtml, /id="global-search-input"/, "搜索弹层应提供关键词输入框");
+assert.match(
+  newTabHtml,
+  /id="author-input"[^>]+role="combobox"[^>]+aria-controls="author-options"/,
+  "作者筛选应使用可搜索组合框，避免渲染近千个原生选项",
+);
+assert.doesNotMatch(newTabHtml, /id="author-select"/, "不应继续使用超长作者下拉框");
 assert.match(newTabHtml, /当前范围寻诗/, "搜索弹层应明确继承当前校订范围");
 assert.match(newTabHtml, /id="author-dialog"/, "应提供诗人、词人人物简介弹层");
 assert.match(newTabHtml, /id="author-works-action"/, "人物简介应提供作者作品入口");
@@ -689,6 +706,11 @@ assert.ok(
 );
 
 const appSource = fs.readFileSync(path.join(projectRoot, "app.js"), "utf8");
+const authorLibrarySource = fs.readFileSync(path.join(projectRoot, "author-library.js"), "utf8");
+const readerConfigSource = fs.readFileSync(path.join(projectRoot, "reader-config.js"), "utf8");
+const readerRoutingSource = fs.readFileSync(path.join(projectRoot, "reader-routing.js"), "utf8");
+const searchCoreSource = fs.readFileSync(path.join(projectRoot, "search-core.js"), "utf8");
+const searchWorkerSource = fs.readFileSync(path.join(projectRoot, "search-worker.js"), "utf8");
 assert.match(appSource, /state\.category === "收藏"/, "收藏入口应筛选本地收藏 ID");
 assert.match(appSource, /state\.period/, "朝代下拉应通过独立时期状态筛选");
 assert.match(appSource, /reviewMode: "deep"/, "应用状态应默认使用深度精读范围");
@@ -700,13 +722,13 @@ assert.match(
 );
 assert.match(appSource, /function reviewModeLabel\(/, "界面应统一展示三层诗库名称");
 assert.match(
-  appSource,
-  /const REVIEW_MODE_KEY = "poem-review-mode-v2"/,
+  readerConfigSource,
+  /reviewMode: "poem-review-mode-v2"/,
   "深度默认范围应使用新版独立存储键完成升级迁移",
 );
 assert.match(appSource, /function loadReviewModePreference\(\)/, "重新打开页面时应恢复校订范围偏好");
 assert.match(appSource, /matchesReviewMode\(item\.poem\)/, "全文搜索应遵循当前校订范围");
-assert.match(appSource, /PERIOD_ORDER/, "朝代选项应保持历史顺序");
+assert.match(readerConfigSource, /PERIOD_ORDER/, "朝代选项应保持历史顺序");
 assert.match(appSource, /诗笺尚空/, "收藏为空时应提供明确提示");
 assert.match(appSource, /function openPoemList\(\)/, "应支持打开当前筛选结果列表");
 assert.match(appSource, /showPoem\(poem, options\.message \|\|/, "点击列表项应直接进入诗词正文");
@@ -772,7 +794,11 @@ assert.match(
   "键盘用户应能用 P 进入专注模式",
 );
 assert.match(appSource, /function renderGlobalSearch\(\)/, "应支持渲染全库搜索结果");
-assert.match(appSource, /return state\.deepSearchRecords/, "默认精读搜索应直接复用首屏数据");
+assert.match(
+  appSource,
+  /records: scope === "deep" \? state\.deepSearchRecords : null/,
+  "默认精读搜索应直接把首屏数据交给 Worker，不追加索引请求",
+);
 assert.match(
   appSource,
   /state\.reviewMode !== "deep" && !state\.libraryReady/,
@@ -781,17 +807,17 @@ assert.match(
 assert.match(appSource, /search-reviewed\.json/, "已校精选搜索应读取轻量分层索引");
 assert.match(appSource, /scope === "reviewed" \? "search-reviewed\.json" : "search\.json"/, "只有全库搜索才应读取全量索引");
 assert.match(appSource, /function warmSearchRecords\(\)/, "用户靠近搜索入口时应预热当前索引");
-assert.match(appSource, /const SEARCH_INPUT_DEBOUNCE_MS = 140/, "连续输入时应使用短防抖减少重复扫描");
+assert.match(readerConfigSource, /SEARCH_INPUT_DEBOUNCE_MS = 140/, "连续输入时应使用短防抖减少重复扫描");
 assert.match(appSource, /function scheduleGlobalSearch\(\)/, "全文搜索输入应统一调度最后一次查询");
 assert.match(newTabHtml, /id="search-results"[^>]+aria-busy="false"/, "搜索结果应向辅助技术暴露加载状态");
 assert.match(appSource, /function openAuthorDialog\(poem\)/, "点击作者应支持打开人物简介");
 assert.match(appSource, /function showActiveAuthorWorks\(\)/, "人物简介应可进入作者作品筛选");
 assert.match(appSource, /fetch\(`data\/authors\.json/, "作者资料必须从扩展包本地加载");
 assert.match(appSource, /pending-review/, "联网新增译文应在界面中明确显示“待校订”");
-assert.match(appSource, /const THEME_KEY = "poem-theme-v1"/, "皮肤选择应使用独立的本地存储键");
+assert.match(readerConfigSource, /theme: "poem-theme-v1"/, "皮肤选择应使用独立的本地存储键");
 assert.match(appSource, /document\.documentElement\.dataset\.theme/, "皮肤选择应应用到页面根元素");
 assert.match(appSource, /function loadTheme\(\)/, "重新打开页面时应恢复已选皮肤");
-assert.match(appSource, /const FONT_KEY = "poem-font-v1"/, "字体选择应使用独立的本地存储键");
+assert.match(readerConfigSource, /font: "poem-font-v1"/, "字体选择应使用独立的本地存储键");
 assert.match(appSource, /font: "default"/, "默认字体应沿用当前字体组合");
 assert.match(appSource, /document\.documentElement\.dataset\.font/, "字体选择应应用到页面根元素");
 assert.match(appSource, /function loadFont\(\)/, "重新打开页面时应恢复已选字体");
@@ -807,14 +833,16 @@ assert.equal(
   "外观面板应提供六种字体选择",
 );
 assert.match(newTabHtml, /data-font-option="xingshu"/, "外观面板应提供免费行书选项");
-assert.match(appSource, /\["xingshu", \{ name: "行书逸韵" \}\]/, "行书选项应接入字体状态");
+assert.match(readerConfigSource, /\["xingshu", \{ name: "行书逸韵" \}\]/, "行书选项应接入字体状态");
 assert.doesNotMatch(newTabHtml, /data-font-option="caoshu"|草书飞扬/, "外观面板不应保留草书选项");
 assert.doesNotMatch(appSource, /caoshu|草书飞扬/, "字体状态不应保留已移除的草书映射");
 assert.match(
   fs.readFileSync(path.join(projectRoot, "extension.css"), "utf8"),
-  /assets\/fonts\/ZhiMangXing-Regular\.ttf/,
-  "行书字体应从扩展包本地加载",
+  /assets\/fonts\/ZhiMangXing-Subset\.woff2/,
+  "行书应加载扩展内置的 WOFF2 子集",
 );
+const fontSubsetMeta = readJson("assets/fonts/ZhiMangXing-Subset.meta.json");
+assert.ok(fontSubsetMeta.outputBytes < fontSubsetMeta.sourceBytes * 0.6, "字体子集应比原 TTF 至少缩小 40%");
 assert.equal(
   fs.existsSync(path.join(projectRoot, "assets/fonts/LiuJianMaoCao-Regular.ttf")),
   false,
@@ -835,26 +863,26 @@ assert.match(
   /扩展包仍包含已移除资源/,
   "发布流程应阻止草书字体资源重新混入扩展包",
 );
-assert.match(appSource, /const SCRIPT_KEY = "poem-script-v1"/, "简繁选择应使用独立的本地存储键");
+assert.match(readerConfigSource, /script: "poem-script-v1"/, "简繁选择应使用独立的本地存储键");
 assert.match(appSource, /script: "simplified"/, "应用状态应默认使用简体中文");
 assert.match(appSource, /function updateScriptOptions\(\)/, "外观面板应同步简繁选中状态");
 assert.match(appSource, /function loadScriptPreference\(\)/, "重新打开页面时应恢复简繁偏好");
 assert.match(
-  appSource,
-  /const AUTO_NEXT_KEY = "poem-auto-next-seconds-v1"/,
+  readerConfigSource,
+  /autoNext: "poem-auto-next-seconds-v1"/,
   "自动下一首应使用独立的本地存储键",
 );
 assert.match(
-  appSource,
-  /const DEFAULT_AUTO_NEXT_SECONDS = 0/,
+  readerConfigSource,
+  /DEFAULT_AUTO_NEXT_SECONDS = 0/,
   "自动下一首默认状态应为关闭",
 );
 assert.match(appSource, /function loadAutoNextPreference\(\)/, "重新打开页面时应恢复自动切换间隔");
 assert.match(appSource, /function scheduleAutoNext\(\)/, "自动下一首应统一调度定时器");
-assert.match(appSource, /const MAX_READING_HISTORY = 30/, "阅读历史应限制内存中的最大数量");
+assert.match(readerConfigSource, /MAX_READING_HISTORY = 30/, "阅读历史应限制内存中的最大数量");
 assert.match(
-  appSource,
-  /const READING_STATS_KEY = "poem-reading-stats-v1"/,
+  readerConfigSource,
+  /readingStats: "poem-reading-stats-v1"/,
   "阅读统计应使用独立的本地存储键",
 );
 assert.match(appSource, /function dailyPoemForToday\(\)/, "应按本地日期生成今日诗签");
@@ -868,8 +896,8 @@ assert.match(appSource, /function loadReadingStats\(\)/, "应恢复本地阅读�
 assert.match(appSource, /recordReading\(poem\.id\)/, "成功展开诗词后应记录阅读");
 assert.match(appSource, /readingStreak\(state\.readingStats/, "状态区应显示连续阅读天数");
 assert.match(
-  appSource,
-  /const LEARNING_PROGRESS_KEY = "poem-learning-progress-v1"/,
+  readerConfigSource,
+  /learningProgress: "poem-learning-progress-v1"/,
   "学习进度应使用独立的本地存储键",
 );
 assert.match(appSource, /function createLearningCard\(poem\)/, "精读页应提供学习入口与复习状态");
@@ -882,7 +910,46 @@ assert.match(
   "练习结束页应向用户解释严格的掌握门槛",
 );
 assert.match(appSource, /function loadLearningProgress\(\)/, "重新打开页面时应恢复本地学习进度");
-assert.match(appSource, /const ONBOARDING_KEY = "poem-onboarding-v1"/, "首访引导状态应使用独立存储键");
+assert.match(readerConfigSource, /onboarding: "poem-onboarding-v1"/, "首访引导状态应使用独立存储键");
+assert.match(
+  appSource,
+  /elements\.libraryPanel\.addEventListener\("toggle"[\s\S]+ensureFullLibrary\(\)/,
+  "完整诗库只能在读者主动展开诗库后加载",
+);
+assert.doesNotMatch(
+  appSource,
+  /setTimeout\([\s\S]{0,240}loadFullLibrary\(/,
+  "首屏绘制后不应继续自动下载完整诗库",
+);
+assert.match(
+  appSource,
+  /matchingResults\.slice\(0, state\.poemListVisibleLimit\)/,
+  "全库作品列表应按可见批次渲染",
+);
+assert.match(
+  appSource,
+  /new Worker\(workerUrl, \{ type: "module", name: "poem-search" \}\)/,
+  "全文索引加载与检索应移入模块 Worker",
+);
+assert.match(
+  searchWorkerSource,
+  /fetch\(url\)[\s\S]+prepareSearchRecord[\s\S]+searchPreparedRecords/,
+  "搜索 Worker 应负责索引下载、预处理与排序",
+);
+assert.match(
+  searchCoreSource,
+  /\[\\p\{P\}\\p\{S\}\\s\]\+\/gu/,
+  "搜索归一化应统一忽略中英文标点与空白",
+);
+assert.match(appSource, /highlightTextSegments\(value, terms\)/, "搜索结果应高亮真实命中片段");
+assert.match(authorLibrarySource, /function createAuthorChoices\(poems\)/, "作者组合框应按朝代区分同名作者");
+assert.match(readerRoutingSource, /function requestedPoemId\(/, "在线阅读器应识别 poem 深链接参数");
+assert.match(appSource, /syncPoemUrl\(poem\.id\)/, "切换作品后应同步可分享的诗词 URL");
+assert.match(
+  appSource,
+  /revealWebInstallPrompt\(\)[\s\S]+isWebReader\(\)/,
+  "安装邀请应只在网页版完成阅读动作后出现",
+);
 assert.match(appSource, /function advanceOnboarding\(expectedStep, nextStep\)/, "首访引导应随真实操作逐步推进");
 assert.match(
   appSource,
@@ -959,7 +1026,7 @@ for (const copiedField of ["资料来源", "原文：", "译文：", "译文状�
 assert.match(appSource, /AI 辅助译文 · 待人工校订/, "AI 草稿必须在界面中明确标注");
 assert.match(appSource, /reader-page-ready/, "阅读页加载后应向后台登记以支持入口复用");
 assert.match(
-  appSource,
+  readerConfigSource,
   /https:\/\/github\.com\/Kua-Fu\/shiyi-yike\/issues\/new/,
   "知识纠错应指向当前 GitHub 项目的新建 Issue 页面",
 );
@@ -1018,8 +1085,12 @@ const packageData = readJson("package.json");
 assert.equal(packageData.version, manifest.version, "npm 包版本与扩展版本必须一致");
 for (const script of [
   "build:review",
+  "build:data",
+  "build:font",
+  "build:poem-pages",
   "build:store-assets",
   "build:web",
+  "test:browser",
   "package:extension",
   "release:prepare",
 ]) {
@@ -1027,6 +1098,9 @@ for (const script of [
 }
 for (const releaseScript of [
   "scripts/build-review-metadata.mjs",
+  "scripts/build-data-atomic.mjs",
+  "scripts/build-font-subset.mjs",
+  "scripts/build-poem-pages.mjs",
   "scripts/build-store-assets.mjs",
   "scripts/build-web.mjs",
   "scripts/package-extension.mjs",
@@ -1046,7 +1120,9 @@ assert.match(
 );
 assert.doesNotMatch(pagesEntryHtml, /http-equiv="refresh"/, "官网不得再用自动跳转跳过产品说明");
 
-const extensionStyles = fs.readFileSync(path.join(projectRoot, "extension.css"), "utf8");
+const extensionStyles = ["reader-appearance.css", "extension.css"]
+  .map((file) => fs.readFileSync(path.join(projectRoot, file), "utf8"))
+  .join("\n");
 assert.match(extensionStyles, /height <= 820px/, "应适配商店截图常用的 1280×800 视口");
 assert.match(
   extensionStyles,

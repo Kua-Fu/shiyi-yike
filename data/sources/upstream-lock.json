@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-08-06",
+  "assets": {
+    "chinese-poetry.shijing": {
+      "repository": "chinese-poetry/chinese-poetry",
+      "commit": "b8594f81a89752241442f2ce267d6f66f96704ee",
+      "path": "诗经/shijing.json",
+      "bytes": 156972,
+      "sha256": "3c7ca54d59424542ada99adfcc85420287fbbd5c8a511e9baf705cb2b04051e7"
+    },
+    "chinese-poetry.chuci": {
+      "repository": "chinese-poetry/chinese-poetry",
+      "commit": "b8594f81a89752241442f2ce267d6f66f96704ee",
+      "path": "楚辞/chuci.json",
+      "bytes": 141832,
+      "sha256": "5069e733d93781cecd55405c6d4699a7c17125b3f13cf79810d68792482e5b9b"
+    },
+    "chinese-poetry.tang-authors": {
+      "repository": "chinese-poetry/chinese-poetry",
+      "commit": "b8594f81a89752241442f2ce267d6f66f96704ee",
+      "path": "全唐诗/authors.tang.json",
+      "bytes": 840110,
+      "sha256": "ebab99f1244b263506d0c0bf1d54495c675f4467d3d91a5b93e89c351b2cc273"
+    },
+    "chinese-poetry.song-poets": {
+      "repository": "chinese-poetry/chinese-poetry",
+      "commit": "b8594f81a89752241442f2ce267d6f66f96704ee",
+      "path": "全唐诗/authors.song.json",
+      "bytes": 3512883,
+      "sha256": "2c2689a3b5df460f02e4dee2a36ac32cc27c43e2964fba7965eba3469bf617ec"
+    },
+    "chinese-poetry.song-authors": {
+      "repository": "chinese-poetry/chinese-poetry",
+      "commit": "b8594f81a89752241442f2ce267d6f66f96704ee",
+      "path": "宋词/author.song.json",
+      "bytes": 263100,
+      "sha256": "8ab648c71baf4ef7314a95a2c7947a215ef870c2a2dbac26d4d8c6b79cb7dcfa"
+    },
+    "chinese-poetry.song-ci-corpus": {
+      "repository": "chinese-poetry/chinese-poetry",
+      "commit": "b8594f81a89752241442f2ce267d6f66f96704ee",
+      "pathTemplate": "宋词/ci.song.{part}.json",
+      "parts": [0, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000, 11000, 12000, 13000, 14000, 15000, 16000, 17000, 18000, 19000, 20000, 21000],
+      "bytes": 8858916,
+      "sha256": "b37d1c0fb6d448139b62ef6300ddae1148c3b13e0409fb136b54d18bad503f8a"
+    },
+    "gushiwen.corpus": {
+      "repository": "yht050511/gushiwen",
+      "commit": "409df701b3f91a41c87e5979b092c8c3c42c2123",
+      "path": "gushiwen.json.gz",
+      "bytes": 49776677,
+      "sha256": "46f917ca6c99d767d2df0c44b034879aa2a3aaf5be5572cf8735fc19bdae4c74"
+    }
+  }
+}

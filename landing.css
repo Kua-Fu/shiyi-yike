@@ -538,6 +538,21 @@ button:focus-visible {
   letter-spacing: .04em;
 }
 
+.proof > p a {
+  width: fit-content;
+  margin-top: 7px;
+  color: var(--cinnabar-dark);
+  font: 600 11px/1.5 var(--sans);
+  text-decoration: none;
+  display: block;
+}
+
+.proof > p a:hover,
+.proof > p a:focus-visible {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
 .section-shell {
   width: min(1240px, calc(100% - 48px));
   margin: 0 auto;

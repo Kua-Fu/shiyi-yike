@@ -8,6 +8,7 @@
     <title>诗意一刻</title>
     <link rel="icon" type="image/png" href="assets/icons/icon-32.png">
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="reader-appearance.css">
     <link rel="stylesheet" href="extension.css">
   </head>
   <body>
@@ -44,7 +45,7 @@
             </nav>
           </header>
 
-          <details id="library-panel" class="library-panel">
+          <details id="library-panel" class="library-panel" aria-busy="false">
             <summary id="library-summary">诗库 · 深度精读 100 篇</summary>
             <section class="filter-panel" aria-label="选择诗库范围，并按朝代、作者和标签筛选">
               <label class="select-field select-field-scope">
@@ -61,12 +62,14 @@
                   <option value="">全部朝代</option>
                 </select>
               </label>
-              <label class="select-field">
+              <div id="author-field" class="select-field author-field">
                 <span id="author-label">作者</span>
-                <select id="author-select" aria-labelledby="author-label" disabled>
-                  <option value="">全部作者</option>
-                </select>
-              </label>
+                <div class="author-combobox">
+                  <input id="author-input" type="search" role="combobox" aria-labelledby="author-label" aria-controls="author-options" aria-expanded="false" aria-autocomplete="list" placeholder="全部作者" autocomplete="off" disabled>
+                  <button id="author-clear" class="author-clear" type="button" aria-label="清除作者筛选" hidden>×</button>
+                  <div id="author-options" class="author-options" role="listbox" aria-labelledby="author-label" hidden></div>
+                </div>
+              </div>
               <label class="select-field">
                 <span id="tag-label">标签</span>
                 <select id="tag-select" aria-labelledby="tag-label" disabled>
@@ -94,6 +97,16 @@
               <button id="onboarding-guide-dismiss" class="onboarding-guide-dismiss" type="button">跳过引导</button>
             </div>
           </section>
+
+          <aside id="web-install-prompt" class="web-install-prompt" aria-labelledby="web-install-title" hidden>
+            <span class="web-install-mark" aria-hidden="true">诗</span>
+            <div class="web-install-copy">
+              <strong id="web-install-title">把今日复习留在工具栏</strong>
+              <span>安装扩展后，一点即读，不接管新标签页。</span>
+            </div>
+            <a id="web-install-action" class="web-install-action" target="_blank" rel="noopener noreferrer">安装 Chrome 扩展 <span aria-hidden="true">↗</span></a>
+            <button id="web-install-dismiss" class="web-install-dismiss" type="button" aria-label="暂不显示安装提示">暂不</button>
+          </aside>
 
           <div class="content">
             <aside class="folio" aria-hidden="true">
@@ -560,7 +573,9 @@
           <span class="poem-list-search-icon" aria-hidden="true">⌕</span>
           <input id="poem-list-search" type="search" placeholder="搜索题目、作者或标签" autocomplete="off">
         </label>
-        <div id="poem-list" class="poem-list" aria-label="当前筛选下的诗词"></div>
+        <div id="poem-list" class="poem-list" aria-label="当前筛选下的诗词">
+          <button id="poem-list-more" class="poem-list-more" type="button" hidden>再显示一批</button>
+        </div>
         <p id="poem-list-empty" class="poem-list-empty" hidden>没有找到相符的诗词</p>
       </section>
     </dialog>

@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { buildPoemPages } from "./lib/poem-pages.mjs";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const outputDirectory = path.join(projectRoot, "dist", "site");
@@ -12,7 +13,15 @@ const runtimeEntries = [
   "newtab.html",
   "privacy.html",
   "landing.css",
+  "poem-page.css",
   "app.js",
+  "author-library.js",
+  "reader-config.js",
+  "reader-routing.js",
+  "reader-appearance.css",
+  "storage-adapter.js",
+  "search-core.js",
+  "search-worker.js",
   "share-poster.js",
   "reading-insights.js",
   "learning-progress.js",
@@ -23,7 +32,9 @@ const runtimeEntries = [
   "sitemap.xml",
   "CNAME",
   "PRIVACY.md",
-  "assets/fonts",
+  "assets/fonts/ZhiMangXing-Subset.woff2",
+  "assets/fonts/ZhiMangXing-Subset.meta.json",
+  "assets/fonts/ZhiMangXing-OFL.txt",
   "assets/icons",
   "assets/store",
   "vendor/opencc-js/full.js",
@@ -49,5 +60,6 @@ for (const entry of runtimeEntries) {
 }
 
 await fs.writeFile(path.join(outputDirectory, ".nojekyll"), "");
+const poemPageCount = await buildPoemPages({ projectRoot, outputRoot: outputDirectory });
 
-console.log(`网页版已生成：${path.relative(projectRoot, outputDirectory)}`);
+console.log(`网页版已生成：${path.relative(projectRoot, outputDirectory)}（含 ${poemPageCount} 篇静态精读页）`);

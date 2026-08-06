@@ -3,17 +3,11 @@ import path from "node:path";
 import { gunzipSync } from "node:zlib";
 import { fileURLToPath } from "node:url";
 import * as OpenCC from "opencc-js";
+import { fetchLockedAsset, fetchLockedJsonCollection } from "./lib/upstream-lock.mjs";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const poemDirectory = path.join(projectRoot, "data/poems");
 const chunkDirectory = path.join(poemDirectory, "chunks");
-const gushiwenCommit = "409df701b3f91a41c87e5979b092c8c3c42c2123";
-const gushiwenUrl =
-  `https://raw.githubusercontent.com/yht050511/gushiwen/${gushiwenCommit}/gushiwen.json.gz`;
-const chinesePoetryCommit = "b8594f81a89752241442f2ce267d6f66f96704ee";
-const chinesePoetryBaseUrl =
-  `https://raw.githubusercontent.com/chinese-poetry/chinese-poetry/${chinesePoetryCommit}`;
-const corpusParts = Array.from({ length: 22 }, (_, index) => index * 1000);
 const target = 200;
 const chunkSize = 100;
 const prefix = "additional-song-ci";
@@ -197,28 +191,15 @@ function insertAfterSongPeriod(poems, additions) {
   ];
 }
 
-async function fetchJson(url, description) {
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`${description}下载失败：${response.status} ${url}`);
-  return response.json();
-}
-
 async function fetchGushiwenRecords() {
-  const response = await fetch(gushiwenUrl);
-  if (!response.ok) {
-    throw new Error(`宋词译文数据下载失败：${response.status} ${gushiwenUrl}`);
-  }
-  return JSON.parse(gunzipSync(Buffer.from(await response.arrayBuffer())).toString("utf8"));
+  const bytes = await fetchLockedAsset(projectRoot, "gushiwen.corpus");
+  return JSON.parse(gunzipSync(bytes).toString("utf8"));
 }
 
 async function fetchSongCiCorpus() {
-  const parts = await Promise.all(
-    corpusParts.map((part) =>
-      fetchJson(
-        `${chinesePoetryBaseUrl}/%E5%AE%8B%E8%AF%8D/ci.song.${part}.json`,
-        `《全宋词》分卷 ${part}`,
-      ),
-    ),
+  const parts = await fetchLockedJsonCollection(
+    projectRoot,
+    "chinese-poetry.song-ci-corpus",
   );
   return parts.flat();
 }
