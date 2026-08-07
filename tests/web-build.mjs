@@ -89,6 +89,9 @@ assert.match(deployedLanding, /property="og:title"/, "官网应提供社交分�
 assert.match(deployedLanding, /social-card-1400x560\.png/, "社交分享应使用兼容性更稳妥的 PNG 主视觉");
 assert.match(deployedLanding, /"@type": "SoftwareApplication"/, "官网应提供软件结构化数据");
 assert.match(deployedLanding, /href="poems\/">浏览 100 篇精读目录/, "官网应提供静态精读目录入口");
+assert.match(deployedLanding, /href="authors\/">诗人</, "官网应直达可索引的诗人内容目录");
+assert.match(deployedLanding, /href="topics\/">主题</, "官网应直达可索引的主题内容目录");
+assert.match(deployedLanding, /href="content-policy\/">内容方法</, "官网应公开内容校订方法与边界");
 assert.doesNotMatch(deployedLanding, /href="\/"/, "官网内链应兼容 GitHub Pages 项目子路径");
 
 // 手机端依赖安全区视口、覆盖式筛选和不小于 44px 的次级操作区，避免后续样式整理时退回拥挤布局。
@@ -271,9 +274,67 @@ const firstPoemPage = fs.readFileSync(
 assert.match(firstPoemPage, /rel="canonical" href="https:\/\/poetries\.cn\/poems\//, "精读页应提供独立规范链接");
 assert.match(firstPoemPage, /<script type="application\/ld\+json">/, "精读页应提供 JSON-LD 结构化数据");
 assert.match(firstPoemPage, /<h2 id="translation-title">白话译文<\/h2>/, "精读页应直接输出译文而非空壳");
+assert.match(firstPoemPage, /原文已校订/, "精读页应在正文前清楚展示原文校订状态");
+assert.match(firstPoemPage, /<h2 id="provenance-title">内容依据与编辑说明<\/h2>/, "精读页应区分原文、译文和原创导览的来源");
+assert.match(firstPoemPage, /不等同于对上游内容的版权担保/, "精读页不能把校订状态包装成版权担保");
+assert.match(firstPoemPage, /href="\.\.\/\.\.\/authors\/%/, "精读页作者名应链接到诗人聚合页");
+assert.match(firstPoemPage, /href="\.\.\/\.\.\/topics\/%/, "精读页标签应链接到主题聚合页");
+assert.match(firstPoemPage, /<h2 id="related-title">延伸阅读<\/h2>/, "精读页应基于内容关系继续分发站内精读");
+
+const authorDirectory = path.join(siteRoot, "authors");
+const authorPages = fs.readdirSync(authorDirectory, { withFileTypes: true })
+  .filter((entry) => entry.isDirectory());
+assert.equal(authorPages.length, 49, "只应为现有深度精读覆盖的 49 位诗人生成内容页");
+const firstAuthorPage = fs.readFileSync(path.join(authorDirectory, authorPages[0].name, "index.html"), "utf8");
+assert.match(firstAuthorPage, /<h2 id="profile-title">作者小传<\/h2>/, "诗人页应提供带来源的小传");
+assert.match(firstAuthorPage, /资料来源：/, "诗人页必须公开作者资料来源");
+assert.match(firstAuthorPage, /<h2 id="works-title">站内精读作品<\/h2>/, "诗人页应汇聚真实站内作品而非空壳简介");
+
+const topicDirectory = path.join(siteRoot, "topics");
+const topicPages = fs.readdirSync(topicDirectory, { withFileTypes: true })
+  .filter((entry) => entry.isDirectory());
+assert.equal(topicPages.length, 16, "只应为深度精读真实使用的 16 个主题生成内容页");
+const firstTopicPage = fs.readFileSync(path.join(topicDirectory, topicPages[0].name, "index.html"), "utf8");
+assert.match(firstTopicPage, /只收录已完成原文校订、译文对齐与原创导览的精读/, "主题页应明确内容入选门槛");
+assert.match(firstTopicPage, /<h2 id="topic-poems-title">/, "主题页应汇聚对应的真实精读作品");
+
+const contentPolicy = fs.readFileSync(path.join(siteRoot, "content-policy", "index.html"), "utf8");
+assert.match(contentPolicy, /先说明依据，再谈数量/, "公开站应提供内容方法说明页");
+assert.match(contentPolicy, /不批量生成搜索落地页/, "内容方法应明确拒绝用待校全库制造薄页面");
+assert.match(contentPolicy, /最终授权仍需权利人确认或专业法律复核/, "内容方法应如实公开上游权利边界");
+
 const sitemap = fs.readFileSync(path.join(siteRoot, "sitemap.xml"), "utf8");
-assert.equal((sitemap.match(/<url>/g) ?? []).length, 103, "sitemap 应包含首页、目录、100 篇精读和隐私页");
+assert.equal((sitemap.match(/<url>/g) ?? []).length, 171, "sitemap 应包含首页、精读、诗人、主题、内容方法和隐私页");
+assert.match(sitemap, /https:\/\/poetries\.cn\/authors\/%/, "sitemap 应提交诗人内容页");
+assert.match(sitemap, /https:\/\/poetries\.cn\/topics\/%/, "sitemap 应提交主题内容页");
 assert.equal(fs.existsSync(path.join(siteRoot, "assets/fonts/ZhiMangXing-Regular.ttf")), false, "网页发布产物不应继续携带原始 TTF");
+
+// 遍历构建产物中的站内链接，防止新增中文目录或相对路径形成可抓取但打不开的内容孤岛。
+function collectHtmlFiles(directory) {
+  return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const entryPath = path.join(directory, entry.name);
+    return entry.isDirectory()
+      ? collectHtmlFiles(entryPath)
+      : entry.name.endsWith(".html") ? [entryPath] : [];
+  });
+}
+
+for (const htmlFile of collectHtmlFiles(siteRoot)) {
+  const html = fs.readFileSync(htmlFile, "utf8");
+  const relativePage = path.relative(siteRoot, htmlFile).split(path.sep).join("/");
+  const baseUrl = new URL(relativePage, "https://poetries.cn/");
+  for (const [, href] of html.matchAll(/href="([^"]+)"/g)) {
+    if (href.startsWith("#")) continue;
+    const linkedUrl = new URL(href, baseUrl);
+    if (linkedUrl.origin !== "https://poetries.cn") continue;
+    let linkedPath = decodeURIComponent(linkedUrl.pathname).replace(/^\/+/, "");
+    if (!linkedPath || linkedPath.endsWith("/")) linkedPath += "index.html";
+    assert.ok(
+      fs.existsSync(path.join(siteRoot, linkedPath)),
+      `${relativePage} 的站内链接不存在：${href}`,
+    );
+  }
+}
 
 assert.match(deploymentWorkflow, /on:[\s\S]+branches:\s+- main/, "GitHub Pages 应在 main 更新后自动发布");
 assert.match(deploymentWorkflow, /\n\s+npm test(?:\s|$)/, "发布前必须执行完整回归测试");

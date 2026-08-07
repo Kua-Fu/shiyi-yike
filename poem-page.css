@@ -16,19 +16,31 @@ a { color: inherit; }
 .site-header { min-height: 72px; padding: 14px max(20px, calc((100vw - 980px) / 2)); border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; gap: 20px; }
 .brand { font: 600 19px/1 var(--serif); letter-spacing: .12em; text-decoration: none; display: inline-flex; align-items: center; gap: 10px; }
 .brand span { width: 34px; height: 34px; color: #fff9ef; background: var(--accent); border-radius: 3px; display: grid; place-items: center; }
+.section-nav { display: flex; align-items: center; gap: 8px; font: 500 13px/1 var(--sans); }
+.section-nav > a:not(.reader-link) { padding: 10px 8px; color: var(--ink-soft); text-decoration: none; }
+.section-nav > a:not(.reader-link):hover { color: var(--accent); }
 .reader-link { min-height: 42px; padding: 0 16px; border: 1px solid var(--accent); border-radius: 2px; color: var(--accent); font: 600 13px/40px var(--sans); text-decoration: none; }
 main { width: min(780px, calc(100% - 36px)); margin: 0 auto; }
 article { padding: clamp(52px, 8vw, 96px) 0 56px; }
+.breadcrumb { margin: 0 0 38px; display: flex; flex-wrap: wrap; gap: 7px; color: var(--ink-soft); font: 500 12px/1.5 var(--sans); }
+.breadcrumb a { text-decoration: none; }
+.breadcrumb a:hover { color: var(--accent); }
 .eyebrow { margin: 0 0 18px; color: var(--accent); font: 600 12px/1 var(--sans); letter-spacing: .24em; }
 h1 { margin: 0; font: 500 clamp(44px, 8vw, 74px)/1.12 "Kaiti SC", "STKaiti", var(--serif); letter-spacing: .08em; }
 .byline { margin: 18px 0 48px; color: var(--ink-soft); letter-spacing: .12em; }
+.byline a { text-decoration-color: #8a302855; text-underline-offset: 4px; }
 h2 { margin: 48px 0 20px; padding-top: 26px; border-top: 1px solid var(--line); font-size: 22px; letter-spacing: .12em; }
 h3 { margin: 0 0 9px; color: var(--accent); font-size: 15px; letter-spacing: .08em; }
 p { line-height: 1.9; }
+.trust-strip { margin: 20px 0 40px; padding: 0; display: flex; flex-wrap: wrap; gap: 9px; list-style: none; }
+.byline + .trust-strip { margin-top: -25px; }
+.trust-strip li { padding: 7px 11px; border: 1px solid #52685070; border-radius: 999px; color: #405840; background: #fffdf744; font: 600 11px/1 var(--sans); }
+.trust-strip li::before { content: "✓"; margin-right: 5px; }
 .verses { font-size: clamp(20px, 4vw, 25px); letter-spacing: .09em; }
 .verses p { margin: 5px 0; }
 .tags { margin-top: 24px; display: flex; flex-wrap: wrap; gap: 8px; }
-.tags span { padding: 6px 10px; border: 1px solid #52685070; border-radius: 999px; color: #405840; font: 500 12px/1 var(--sans); }
+.tags a { padding: 7px 10px; border: 1px solid #52685070; border-radius: 999px; color: #405840; font: 500 12px/1 var(--sans); text-decoration: none; }
+.tags a:hover { color: var(--accent); border-color: #8a302870; }
 .prose, .guide-grid { color: #3d473f; font-size: 16px; }
 .guide-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .guide-grid div { padding: 20px; background: #fffdf766; border-left: 3px solid #8a302875; }
@@ -37,8 +49,24 @@ p { line-height: 1.9; }
 .annotations li { padding: 15px 18px; background: var(--paper-deep); display: grid; gap: 7px; }
 .annotations strong { color: var(--accent); }
 .annotations span { color: var(--ink-soft); line-height: 1.7; }
-.source { margin: 32px 0; color: var(--ink-soft); font: 400 12px/1.8 var(--sans); }
+.section-intro { color: var(--ink-soft); }
+.provenance-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.provenance-grid > div { padding: 18px; border: 1px solid var(--line); background: #fffdf74f; }
+.provenance-grid strong { color: #405840; font: 600 12px/1 var(--sans); }
+.provenance-grid p { margin: 9px 0 0; color: var(--ink-soft); font: 400 13px/1.75 var(--sans); }
+.provenance-grid a, .content-boundary a, .source-note a { color: var(--accent); text-underline-offset: 3px; }
+.evidence-heading { margin-top: 28px; }
+.evidence-list { margin: 0; padding: 0; display: grid; gap: 8px; list-style: none; }
+.evidence-list li { padding: 13px 15px; background: var(--paper-deep); display: grid; gap: 5px; }
+.evidence-list strong { color: var(--ink); font-size: 14px; }
+.evidence-list span { color: var(--ink-soft); font: 400 12px/1.7 var(--sans); }
+.content-boundary, .source-note { padding-left: 14px; border-left: 3px solid #8a302855; color: var(--ink-soft); font: 400 12px/1.8 var(--sans); }
 .primary-cta { min-height: 52px; padding: 0 22px; color: #fffdf7; background: var(--ink); font: 600 14px/52px var(--sans); letter-spacing: .08em; text-decoration: none; display: inline-block; }
+.related-reading ul { margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; list-style: none; }
+.related-reading a { min-height: 90px; padding: 16px; border: 1px solid var(--line); background: #fffdf74f; text-decoration: none; display: grid; align-content: center; gap: 7px; }
+.related-reading a:hover { border-color: #8a302870; }
+.related-reading strong { font-size: 16px; }
+.related-reading span { color: var(--ink-soft); font: 400 11px/1.5 var(--sans); }
 .poem-nav { padding: 26px 0 60px; border-top: 1px solid var(--line); display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
 .poem-nav a:last-child { text-align: right; }
 .poem-index { margin: 42px 0 0; padding: 0; list-style: none; display: grid; gap: 9px; }
@@ -46,13 +74,40 @@ p { line-height: 1.9; }
 .poem-index span, .poem-index small { color: var(--ink-soft); }
 .poem-index small { line-height: 1.5; }
 .lead { color: var(--ink-soft); font-size: 17px; }
-footer { padding: 28px 18px; border-top: 1px solid var(--line); color: var(--ink-soft); text-align: center; font-size: 13px; letter-spacing: .14em; }
+.directory-links { margin: 38px 0 46px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.directory-links a { padding: 17px; border: 1px solid var(--line); background: #fffdf74f; text-decoration: none; display: grid; gap: 8px; }
+.directory-links strong { color: var(--accent); font-size: 14px; }
+.directory-links span { color: var(--ink-soft); font: 400 11px/1.5 var(--sans); }
+.entity-index, .topic-index, .content-list { margin: 42px 0 0; padding: 0; display: grid; list-style: none; gap: 9px; }
+.entity-index { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.topic-index { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.entity-index a, .topic-index a { min-height: 95px; padding: 17px; border: 1px solid var(--line); background: #fffdf74f; text-decoration: none; display: grid; align-content: center; gap: 7px; }
+.entity-index strong, .topic-index strong { color: var(--accent); font-size: 18px; }
+.entity-index span, .entity-index small, .topic-index small { color: var(--ink-soft); font: 400 11px/1.4 var(--sans); }
+.author-profile > p:first-of-type { font-size: 16px; }
+.content-list li { padding: 18px 20px; border: 1px solid var(--line); background: #fffdf74f; }
+.poem-card-main { text-decoration: none; display: grid; gap: 7px; }
+.poem-card-main strong { font-size: 19px; }
+.poem-card-main small { color: var(--ink-soft); font: 400 13px/1.65 var(--sans); }
+.content-list li > p { margin: 12px 0 0; display: flex; flex-wrap: wrap; gap: 8px 16px; color: var(--ink-soft); font: 400 11px/1.5 var(--sans); }
+.content-list li > p a { color: var(--accent); }
+.policy-levels { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.policy-levels > div { padding: 21px; border: 1px solid var(--line); background: #fffdf74f; }
+.policy-levels > div > strong { color: var(--accent); font: 500 34px/1 var(--serif); }
+.policy-levels h3 { margin-top: 14px; }
+.policy-levels p { margin-bottom: 0; color: var(--ink-soft); font: 400 13px/1.75 var(--sans); }
+footer { padding: 28px 18px; border-top: 1px solid var(--line); color: var(--ink-soft); text-align: center; font-size: 13px; letter-spacing: .14em; display: flex; justify-content: center; flex-wrap: wrap; gap: 14px 28px; }
+footer nav { display: flex; gap: 18px; font-family: var(--sans); letter-spacing: .04em; }
 :focus-visible { outline: 3px solid #8a302866; outline-offset: 3px; }
 @media (max-width: 640px) {
   .site-header { padding-inline: 16px; }
+  .section-nav > a:not(.reader-link) { display: none; }
   article { padding-top: 48px; }
   .byline { margin-bottom: 36px; }
-  .guide-grid { grid-template-columns: 1fr; }
+  .guide-grid, .provenance-grid, .policy-levels, .directory-links { grid-template-columns: 1fr; }
+  .related-reading ul { grid-template-columns: 1fr; }
+  .entity-index { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .topic-index { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .poem-index a { grid-template-columns: 1fr auto; }
   .poem-index small { grid-column: 1 / -1; }
 }
