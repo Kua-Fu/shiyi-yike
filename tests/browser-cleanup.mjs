@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
 import { EventEmitter } from "node:events";
 import fs from "node:fs/promises";
 import os from "node:os";
@@ -50,4 +51,27 @@ await cleanupChrome(
 assert.deepEqual(forcedChild.signals, ["SIGTERM", "SIGKILL"], "退出超时后应强制结束 Chrome");
 await assert.rejects(fs.access(forcedProfile), { code: "ENOENT" }, "强制退出后仍应删除浏览器临时目录");
 
-console.log("✓ Chrome 正常退出、超时强制退出与临时目录清理均通过校验");
+if (process.platform !== "win32") {
+  const groupedProfile = await createProfileDirectory();
+  const groupedChild = spawn(
+    process.execPath,
+    [
+      "-e",
+      `const { spawn } = require("node:child_process");
+       spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { stdio: "ignore" });
+       setInterval(() => {}, 1000);`,
+    ],
+    { detached: true, stdio: "ignore" },
+  );
+  await new Promise((resolve, reject) => {
+    groupedChild.once("spawn", resolve);
+    groupedChild.once("error", reject);
+  });
+  await cleanupChrome(
+    { child: groupedChild, userDataDirectory: groupedProfile, processGroup: true },
+    { timeoutMs: 1000 },
+  );
+  await assert.rejects(fs.access(groupedProfile), { code: "ENOENT" }, "进程组退出后应删除浏览器临时目录");
+}
+
+console.log("✓ Chrome 正常退出、超时强制退出、子进程组与临时目录清理均通过校验");

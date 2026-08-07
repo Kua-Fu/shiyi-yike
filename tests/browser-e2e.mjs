@@ -64,6 +64,7 @@ async function launchChrome() {
   })();
   if (!executable) throw new Error("未找到 Chrome/Chromium；可通过 CHROME_PATH 指定真实浏览器");
   const userDataDirectory = await fs.mkdtemp(path.join(os.tmpdir(), "shiyi-browser-"));
+  const processGroup = process.platform !== "win32";
   const child = spawn(executable, [
     "--headless=new",
     "--remote-debugging-port=0",
@@ -74,7 +75,11 @@ async function launchChrome() {
     "--disable-gpu",
     "--no-first-run",
     "--no-default-browser-check",
-  ], { stdio: ["ignore", "ignore", "pipe"] });
+  ], {
+    // 单独的进程组让 Linux CI 能一次结束 Chrome 主进程、渲染器与后台写盘进程。
+    detached: processGroup,
+    stdio: ["ignore", "ignore", "pipe"],
+  });
   let webSocketUrl;
   try {
     webSocketUrl = await new Promise((resolve, reject) => {
@@ -100,10 +105,10 @@ async function launchChrome() {
       child.once("exit", (code) => finish(reject, new Error(`Chrome 提前退出：${code}`)));
     });
   } catch (error) {
-    await cleanupChrome({ child, userDataDirectory });
+    await cleanupChrome({ child, userDataDirectory, processGroup });
     throw error;
   }
-  return { child, userDataDirectory, webSocketUrl };
+  return { child, userDataDirectory, webSocketUrl, processGroup };
 }
 
 async function connectCdp(url) {
