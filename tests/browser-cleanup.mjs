@@ -74,4 +74,33 @@ if (process.platform !== "win32") {
   await assert.rejects(fs.access(groupedProfile), { code: "ENOENT" }, "进程组退出后应删除浏览器临时目录");
 }
 
-console.log("✓ Chrome 正常退出、超时强制退出、子进程组与临时目录清理均通过校验");
+let cleanupWarning = "";
+await cleanupChrome(
+  { child: null, userDataDirectory: "/tmp/shiyi-busy-profile" },
+  {
+    onCleanupWarning: (message) => { cleanupWarning = message; },
+    removeProfile: async () => {
+      const error = new Error("directory not empty");
+      error.code = "ENOTEMPTY";
+      throw error;
+    },
+  },
+);
+assert.match(cleanupWarning, /ENOTEMPTY/, "后台占用临时目录时应给出非阻断清理告警");
+
+await assert.rejects(
+  cleanupChrome(
+    { child: null, userDataDirectory: "/tmp/shiyi-invalid-profile" },
+    {
+      removeProfile: async () => {
+        const error = new Error("invalid path");
+        error.code = "EINVAL";
+        throw error;
+      },
+    },
+  ),
+  { code: "EINVAL" },
+  "非瞬时文件系统错误仍应阻断测试",
+);
+
+console.log("✓ Chrome 正常退出、超时强制退出、子进程组与临时目录竞态均通过校验");

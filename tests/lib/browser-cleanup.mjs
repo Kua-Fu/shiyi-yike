@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 
 const wait = (timeoutMs) => new Promise((resolve) => setTimeout(resolve, timeoutMs));
+const transientProfileErrors = new Set(["EBUSY", "ENOTEMPTY", "EPERM"]);
 
 function hasExited(child) {
   return child.exitCode !== null || child.signalCode !== null;
@@ -59,17 +60,27 @@ export async function stopChrome(child, { timeoutMs = 3000, processGroup = false
 
 export async function cleanupChrome(chrome, options = {}) {
   if (!chrome) return;
+  const {
+    onCleanupWarning = (message) => console.warn(message),
+    removeProfile = fs.rm,
+  } = options;
   // Linux CI 中 Chrome 的渲染器可能在主进程退出后继续写 Default；需结束整个独立进程组。
   await stopChrome(chrome.child, {
     ...options,
     processGroup: chrome.processGroup ?? options.processGroup,
   });
   if (chrome.userDataDirectory) {
-    await fs.rm(chrome.userDataDirectory, {
-      force: true,
-      recursive: true,
-      maxRetries: 10,
-      retryDelay: 100,
-    });
+    try {
+      await removeProfile(chrome.userDataDirectory, {
+        force: true,
+        recursive: true,
+        maxRetries: 10,
+        retryDelay: 100,
+      });
+    } catch (error) {
+      if (!transientProfileErrors.has(error.code)) throw error;
+      // Runner 的 /tmp 会在任务结束后销毁，残留目录不应让已通过的浏览器验收误报失败。
+      onCleanupWarning(`⚠ Chrome 临时目录仍被后台进程占用，交由运行环境回收：${error.code}`);
+    }
   }
 }
