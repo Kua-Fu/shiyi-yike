@@ -276,14 +276,20 @@ assert.equal((sitemap.match(/<url>/g) ?? []).length, 103, "sitemap 应包含首�
 assert.equal(fs.existsSync(path.join(siteRoot, "assets/fonts/ZhiMangXing-Regular.ttf")), false, "网页发布产物不应继续携带原始 TTF");
 
 assert.match(deploymentWorkflow, /on:[\s\S]+branches:\s+- main/, "GitHub Pages 应在 main 更新后自动发布");
-assert.match(deploymentWorkflow, /run: npm test/, "发布前必须执行完整回归测试");
-assert.match(deploymentWorkflow, /run: npm run build:web/, "发布工作流必须显式生成公开站点");
+assert.match(deploymentWorkflow, /\n\s+npm test(?:\s|$)/, "发布前必须执行完整回归测试");
 assert.match(
   deploymentWorkflow,
-  /uses: actions\/upload-pages-artifact@v4[\s\S]+path: dist\/site[\s\S]+include-hidden-files: true/,
+  /test_status=\$\{PIPESTATUS\[0\]\}[\s\S]+exit "\$test_status"/,
+  "回归测试通过管道输出诊断时仍必须透传失败状态",
+);
+assert.match(deploymentWorkflow, /run: npm run build:web/, "发布工作流必须显式生成公开站点");
+assert.match(deploymentWorkflow, /uses: actions\/configure-pages@v6/, "Pages 配置动作应使用 Node 24 版本");
+assert.match(
+  deploymentWorkflow,
+  /uses: actions\/upload-pages-artifact@v5[\s\S]+path: dist\/site[\s\S]+include-hidden-files: true/,
   "Pages 只能上传 dist/site，并保留 .nojekyll",
 );
-assert.match(deploymentWorkflow, /uses: actions\/deploy-pages@v4/, "Pages 应使用官方部署动作发布构建产物");
+assert.match(deploymentWorkflow, /uses: actions\/deploy-pages@v5/, "Pages 应使用 Node 24 部署动作发布构建产物");
 assert.match(
   deploymentWorkflow,
   /needs: deploy[\s\S]+verify-deployed-site\.mjs/,
