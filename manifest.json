@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "诗意一刻｜古诗词精读与记忆",
   "short_name": "诗意一刻",
-  "version": "1.15.0",
+  "version": "1.16.0",
   "description": "逐句读懂古诗词，理解篇章转折，再用主动回想与间隔复习真正记住；无需账号，不替换新标签页。",
   "icons": {
     "16": "assets/icons/icon-16.png",

@@ -57,6 +57,10 @@ const {
   onboarding: ONBOARDING_KEY,
   webInstallDismissed: WEB_INSTALL_DISMISSED_KEY,
 } = STORAGE_KEYS;
+const WEB_INSTALL_BLOCKING_MEDIA = [
+  "(max-width: 650px)",
+  "(hover: none) and (pointer: coarse)",
+];
 // 诗库只保留一份简体源数据：展示时转为繁体，搜索时再归一化为简体，避免维护两套正文。
 let TO_TRADITIONAL = (value) => String(value);
 let TO_SIMPLIFIED = (value) => String(value);
@@ -436,9 +440,14 @@ async function loadWebInstallPreference() {
   state.webInstallDismissed = saved === true || saved === "true";
 }
 
+function canOfferWebInstall() {
+  // Chrome 商店安装链路只适合桌面浏览器；窄屏或触屏设备继续保留完整在线阅读能力。
+  return isWebReader() && !WEB_INSTALL_BLOCKING_MEDIA.some((query) => matchMedia(query).matches);
+}
+
 function revealWebInstallPrompt() {
-  // 只在网页版完成一次真实阅读动作后邀请安装；扩展页及已主动关闭的读者始终不受打扰。
-  if (!isWebReader() || state.webInstallDismissed || !elements.webInstallPrompt.hidden) return;
+  // 只在桌面网页版完成一次记忆练习后邀请安装；扩展页及已主动关闭的读者始终不受打扰。
+  if (!canOfferWebInstall() || state.webInstallDismissed || !elements.webInstallPrompt.hidden) return;
   elements.webInstallPrompt.hidden = false;
 }
 
@@ -1943,7 +1952,6 @@ function createOriginal(poem) {
       );
       if (!expanded) {
         advanceOnboarding("verse", "guide");
-        revealWebInstallPrompt();
       }
     });
     study.append(button, panel);

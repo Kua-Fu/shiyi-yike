@@ -1,4 +1,4 @@
-export const DATA_VERSION = "1.15.0";
+export const DATA_VERSION = "1.16.0";
 export const STORAGE_KEYS = Object.freeze({
   favorites: "poem-favorites-v2",
   theme: "poem-theme-v1",

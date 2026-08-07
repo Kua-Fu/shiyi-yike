@@ -242,6 +242,13 @@ try {
     }
   }
 
+  await evaluate(cdp, `document.querySelector(".verse-trigger").click()`);
+  assert.equal(
+    await evaluate(cdp, `document.querySelector("#web-install-prompt").hidden`),
+    true,
+    "桌面端展开第一句时不应过早出现安装邀请",
+  );
+
   await evaluate(cdp, `document.querySelector("#search-trigger").click()`);
   assert.equal(await evaluate(cdp, `document.activeElement.id`), "global-search-input");
   await evaluate(cdp, `(() => { const input = document.querySelector("#global-search-input"); input.value = "床前明月光疑是地上霜"; input.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: "霜" })); })()`);
@@ -263,6 +270,29 @@ try {
   await waitFor(cdp, `!document.querySelector("#search-trigger").disabled`);
   assert.equal(await evaluate(cdp, `document.documentElement.scrollWidth <= innerWidth`), true);
   assert.ok(await evaluate(cdp, `document.querySelector("#next-action").getBoundingClientRect().height >= 44`));
+  const mobileOverlayGeometry = await evaluate(cdp, `(() => {
+    const guide = document.querySelector("#onboarding-guide");
+    const actions = document.querySelector(".side-panel");
+    const guideRect = guide.getBoundingClientRect();
+    const actionsRect = actions.getBoundingClientRect();
+    return {
+      guideHidden: guide.hidden,
+      guideBottom: guideRect.bottom,
+      actionsTop: actionsRect.top,
+    };
+  })()`);
+  assert.equal(mobileOverlayGeometry.guideHidden, false, "手机首访引导应继续可见");
+  assert.ok(
+    mobileOverlayGeometry.guideBottom <= mobileOverlayGeometry.actionsTop - 8,
+    `手机首访引导底边 ${mobileOverlayGeometry.guideBottom} 应与操作坞顶边 ${mobileOverlayGeometry.actionsTop} 保留间距`,
+  );
+  await evaluate(cdp, `document.querySelector("#web-install-prompt").hidden = false`);
+  assert.equal(
+    await evaluate(cdp, `getComputedStyle(document.querySelector("#web-install-prompt")).display`),
+    "none",
+    "手机端即使提示状态异常，也不应显示桌面 Chrome 安装入口",
+  );
+  await evaluate(cdp, `document.querySelector("#web-install-prompt").hidden = true`);
 
   await cdp.send("Emulation.setEmulatedMedia", {
     media: "screen",

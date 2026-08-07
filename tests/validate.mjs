@@ -10,7 +10,7 @@ const readJson = (relativePath) =>
 
 const manifest = readJson("manifest.json");
 assert.equal(manifest.manifest_version, 3, "扩展必须使用 Manifest V3");
-assert.equal(manifest.version, "1.15.0");
+assert.equal(manifest.version, "1.16.0");
 assert.equal(manifest.short_name, "诗意一刻", "工具栏应保留简短品牌名");
 assert.match(manifest.name, /古诗词精读与记忆/, "商店名称应直接说明产品用途");
 assert.match(manifest.description, /逐句读懂古诗词/, "商店短描述应从用户收益出发");
@@ -947,8 +947,13 @@ assert.match(readerRoutingSource, /function requestedPoemId\(/, "在线阅读器
 assert.match(appSource, /syncPoemUrl\(poem\.id\)/, "切换作品后应同步可分享的诗词 URL");
 assert.match(
   appSource,
-  /revealWebInstallPrompt\(\)[\s\S]+isWebReader\(\)/,
-  "安装邀请应只在网页版完成阅读动作后出现",
+  /function revealWebInstallPrompt\(\)[\s\S]+canOfferWebInstall\(\)/,
+  "安装邀请应统一经过桌面网页版能力判断",
+);
+assert.match(
+  appSource,
+  /function canOfferWebInstall\(\)[\s\S]+WEB_INSTALL_BLOCKING_MEDIA[\s\S]+matchMedia/,
+  "窄屏和触屏设备不应出现桌面 Chrome 扩展安装入口",
 );
 assert.match(appSource, /function advanceOnboarding\(expectedStep, nextStep\)/, "首访引导应随真实操作逐步推进");
 assert.match(

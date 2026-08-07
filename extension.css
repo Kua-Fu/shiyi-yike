@@ -1538,7 +1538,7 @@
   color: var(--cinnabar-dark);
 }
 
-/* 网页版只在完成真实阅读动作后出现这条轻量邀请；保持在文档流中，避免遮挡诗文和操作按钮。 */
+/* 桌面网页版完成记忆练习后才出现这条轻量邀请；保持在文档流中，避免遮挡诗文和操作按钮。 */
 .web-install-prompt {
   z-index: 4;
   min-height: 68px;
@@ -2290,7 +2290,8 @@
     position: fixed;
     top: auto;
     right: max(12px, env(safe-area-inset-right));
-    bottom: max(12px, env(safe-area-inset-bottom));
+    /* 两行操作区共 124px；引导卡始终停在操作坞上方，并额外让出安全区。 */
+    bottom: calc(124px + max(12px, env(safe-area-inset-bottom)));
     left: max(12px, env(safe-area-inset-left));
     grid-template-columns: 34px minmax(0, 1fr);
     gap: 10px 12px;
@@ -2458,6 +2459,13 @@
 
   .reading-settings .auto-next-field {
     grid-template-columns: minmax(0, 1fr) 128px;
+  }
+}
+
+/* 手机和平板无法走桌面 Chrome 扩展安装链路；即使脚本状态异常，也不展示无效入口。 */
+@media (width <= 650px), (hover: none) and (pointer: coarse) {
+  .web-install-prompt {
+    display: none;
   }
 }
 

@@ -18,6 +18,10 @@ const sourceReader = fs.readFileSync(path.join(projectRoot, "newtab.html"), "utf
 const sourceApp = fs.readFileSync(path.join(projectRoot, "app.js"), "utf8");
 const sourceConfig = fs.readFileSync(path.join(projectRoot, "reader-config.js"), "utf8");
 const sourceRouting = fs.readFileSync(path.join(projectRoot, "reader-routing.js"), "utf8");
+const deploymentWorkflow = fs.readFileSync(
+  path.join(projectRoot, ".github/workflows/deploy-pages.yml"),
+  "utf8",
+);
 const deployedLanding = fs.readFileSync(path.join(siteRoot, "index.html"), "utf8");
 const deployedReader = fs.readFileSync(path.join(siteRoot, "newtab.html"), "utf8");
 assert.equal(deployedLanding, sourceLanding, "网页版首页必须发布独立获客页");
@@ -39,6 +43,38 @@ assert.match(
 );
 assert.match(deployedReader, /id="web-install-prompt"[^>]+hidden/, "在线体验应内置延迟出现的扩展安装邀请");
 assert.match(sourceConfig, /webInstallDismissed: "web-install-dismissed-v1"/, "安装邀请关闭状态应可持久保存");
+assert.match(
+  sourceApp,
+  /function canOfferWebInstall\(\)[\s\S]+WEB_INSTALL_BLOCKING_MEDIA[\s\S]+matchMedia/,
+  "安装邀请必须在脚本层拦截窄屏和触屏设备",
+);
+const originalRenderer = sourceApp.match(
+  /function createOriginal\(poem\) \{([\s\S]+?)\n\}\n\nfunction createDeepReadingGuide/,
+);
+assert.ok(originalRenderer, "应能定位逐句精读渲染逻辑");
+assert.doesNotMatch(
+  originalRenderer[1],
+  /revealWebInstallPrompt\(/,
+  "展开第一句只服务精读引导，不应立即打断并索取安装",
+);
+const learningCompletion = sourceApp.match(
+  /function finishLearningPractice\(\) \{([\s\S]+?)\n\}\n\nfunction advanceLearningPractice/,
+);
+assert.ok(learningCompletion, "应能定位逐句回想完成逻辑");
+assert.match(
+  learningCompletion[1],
+  /revealWebInstallPrompt\(\)/,
+  "完成回想练习后仍应保留桌面安装邀请",
+);
+const puzzleCompletion = sourceApp.match(
+  /function finishPuzzleGame\(\) \{([\s\S]+?)\n\}\n\nfunction advancePuzzleGame/,
+);
+assert.ok(puzzleCompletion, "应能定位诗句拼图完成逻辑");
+assert.match(
+  puzzleCompletion[1],
+  /revealWebInstallPrompt\(\)/,
+  "完成诗句拼图后仍应保留桌面安装邀请",
+);
 assert.match(sourceConfig, /POEM_LIST_PAGE_SIZE = 120/, "全库列表应设置稳定的分批大小");
 assert.match(sourceApp, /new Worker\(workerUrl, \{ type: "module"/, "在线全文搜索应在 Worker 中运行");
 assert.match(sourceReader, /id="author-input"[^>]+role="combobox"/, "在线诗库应提供可搜索作者选择");
@@ -72,6 +108,16 @@ assert.match(
   responsiveCss,
   /\.secondary-actions \.share-action[\s\S]+min-height: 44px;/,
   "手机端次级操作必须保留足够的触控高度",
+);
+assert.match(
+  responsiveCss,
+  /@media \(width <= 650px\)[\s\S]+\.onboarding-guide \{[\s\S]+bottom: calc\(124px \+ max\(12px, env\(safe-area-inset-bottom\)\)\);/,
+  "手机首访引导必须让出底部操作坞和安全区",
+);
+assert.match(
+  responsiveCss,
+  /@media \(width <= 650px\), \(hover: none\) and \(pointer: coarse\) \{\s+\.web-install-prompt \{\s+display: none;/,
+  "移动设备应在样式层隐藏无效的桌面扩展安装入口",
 );
 assert.match(
   sourceReader,
@@ -228,6 +274,21 @@ assert.match(firstPoemPage, /<h2 id="translation-title">白话译文<\/h2>/, "�
 const sitemap = fs.readFileSync(path.join(siteRoot, "sitemap.xml"), "utf8");
 assert.equal((sitemap.match(/<url>/g) ?? []).length, 103, "sitemap 应包含首页、目录、100 篇精读和隐私页");
 assert.equal(fs.existsSync(path.join(siteRoot, "assets/fonts/ZhiMangXing-Regular.ttf")), false, "网页发布产物不应继续携带原始 TTF");
+
+assert.match(deploymentWorkflow, /on:[\s\S]+branches:\s+- main/, "GitHub Pages 应在 main 更新后自动发布");
+assert.match(deploymentWorkflow, /run: npm test/, "发布前必须执行完整回归测试");
+assert.match(deploymentWorkflow, /run: npm run build:web/, "发布工作流必须显式生成公开站点");
+assert.match(
+  deploymentWorkflow,
+  /uses: actions\/upload-pages-artifact@v4[\s\S]+path: dist\/site[\s\S]+include-hidden-files: true/,
+  "Pages 只能上传 dist/site，并保留 .nojekyll",
+);
+assert.match(deploymentWorkflow, /uses: actions\/deploy-pages@v4/, "Pages 应使用官方部署动作发布构建产物");
+assert.match(
+  deploymentWorkflow,
+  /needs: deploy[\s\S]+verify-deployed-site\.mjs/,
+  "部署完成后必须继续检查真实线上页面",
+);
 
 for (const privateEntry of [
   "manifest.json",
