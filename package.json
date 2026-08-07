@@ -24,7 +24,7 @@
     "verify:web-deployed": "node scripts/verify-deployed-site.mjs",
     "package:extension": "node scripts/package-extension.mjs",
     "test:browser": "node tests/browser-e2e.mjs",
-    "test": "node tests/validate.mjs && node tests/deep-readings.mjs && node tests/learning-progress.mjs && node tests/poem-puzzle.mjs && node tests/background.mjs && node tests/reading-insights.mjs && node tests/storage-adapter.mjs && node tests/search-core.mjs && node tests/reader-modules.mjs && node tests/upstream-lock.mjs && node tests/share-poster.mjs && node tests/web-build.mjs && node tests/deployment-smoke.mjs && npm run test:browser",
+    "test": "node tests/validate.mjs && node tests/deep-readings.mjs && node tests/learning-progress.mjs && node tests/poem-puzzle.mjs && node tests/background.mjs && node tests/reading-insights.mjs && node tests/storage-adapter.mjs && node tests/search-core.mjs && node tests/reader-modules.mjs && node tests/upstream-lock.mjs && node tests/share-poster.mjs && node tests/web-build.mjs && node tests/deployment-smoke.mjs && node tests/browser-cleanup.mjs && npm run test:browser",
     "release:prepare": "npm test && npm run build:store-assets && npm run package:extension"
   },
   "devDependencies": {

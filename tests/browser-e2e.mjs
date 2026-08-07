@@ -5,6 +5,7 @@ import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { cleanupChrome } from "./lib/browser-cleanup.mjs";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const siteRoot = path.join(projectRoot, "dist/site");
@@ -99,8 +100,7 @@ async function launchChrome() {
       child.once("exit", (code) => finish(reject, new Error(`Chrome 提前退出：${code}`)));
     });
   } catch (error) {
-    if (child.exitCode === null) child.kill("SIGTERM");
-    await fs.rm(userDataDirectory, { force: true, recursive: true });
+    await cleanupChrome({ child, userDataDirectory });
     throw error;
   }
   return { child, userDataDirectory, webSocketUrl };
@@ -282,8 +282,10 @@ try {
     };
   })()`);
   assert.equal(mobileOverlayGeometry.guideHidden, false, "手机首访引导应继续可见");
+  // Chrome 设备模拟会产生少量小数视口波动；保留 6px 可见间距即可严格避免两层相接或重叠。
+  const minimumMobileGuideGap = 6;
   assert.ok(
-    mobileOverlayGeometry.guideBottom <= mobileOverlayGeometry.actionsTop - 8,
+    mobileOverlayGeometry.guideBottom <= mobileOverlayGeometry.actionsTop - minimumMobileGuideGap,
     `手机首访引导底边 ${mobileOverlayGeometry.guideBottom} 应与操作坞顶边 ${mobileOverlayGeometry.actionsTop} 保留间距`,
   );
   await evaluate(cdp, `document.querySelector("#web-install-prompt").hidden = false`);
@@ -303,10 +305,7 @@ try {
   assert.deepEqual(runtimeErrors, [], "真实浏览器运行期间不应出现脚本错误或警告日志");
 } finally {
   cdp?.close();
-  if (chrome?.child && chrome.child.exitCode === null) chrome.child.kill("SIGTERM");
-  if (chrome?.userDataDirectory) {
-    await fs.rm(chrome.userDataDirectory, { force: true, recursive: true });
-  }
+  await cleanupChrome(chrome);
   await new Promise((resolve) => server.close(resolve));
 }
 

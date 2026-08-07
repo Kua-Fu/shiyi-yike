@@ -1,0 +1,53 @@
+import assert from "node:assert/strict";
+import { EventEmitter } from "node:events";
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { cleanupChrome } from "./lib/browser-cleanup.mjs";
+
+class FakeChromeProcess extends EventEmitter {
+  constructor({ ignoreSigterm = false } = {}) {
+    super();
+    this.exitCode = null;
+    this.signalCode = null;
+    this.ignoreSigterm = ignoreSigterm;
+    this.signals = [];
+  }
+
+  kill(signal) {
+    this.signals.push(signal);
+    if (signal === "SIGTERM" && this.ignoreSigterm) return true;
+    setTimeout(() => {
+      this.signalCode = signal;
+      this.emit("exit", null, signal);
+    }, 0);
+    return true;
+  }
+}
+
+async function createProfileDirectory() {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), "shiyi-cleanup-test-"));
+  await fs.mkdir(path.join(directory, "Default"));
+  await fs.writeFile(path.join(directory, "Default", "Preferences"), "{}");
+  return directory;
+}
+
+const gracefulProfile = await createProfileDirectory();
+const gracefulChild = new FakeChromeProcess();
+await cleanupChrome(
+  { child: gracefulChild, userDataDirectory: gracefulProfile },
+  { timeoutMs: 20 },
+);
+assert.deepEqual(gracefulChild.signals, ["SIGTERM"], "正常退出时不应发送强制结束信号");
+await assert.rejects(fs.access(gracefulProfile), { code: "ENOENT" }, "进程退出后应删除浏览器临时目录");
+
+const forcedProfile = await createProfileDirectory();
+const forcedChild = new FakeChromeProcess({ ignoreSigterm: true });
+await cleanupChrome(
+  { child: forcedChild, userDataDirectory: forcedProfile },
+  { timeoutMs: 20 },
+);
+assert.deepEqual(forcedChild.signals, ["SIGTERM", "SIGKILL"], "退出超时后应强制结束 Chrome");
+await assert.rejects(fs.access(forcedProfile), { code: "ENOENT" }, "强制退出后仍应删除浏览器临时目录");
+
+console.log("✓ Chrome 正常退出、超时强制退出与临时目录清理均通过校验");
