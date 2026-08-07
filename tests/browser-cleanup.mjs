@@ -13,6 +13,10 @@ class FakeChromeProcess extends EventEmitter {
     this.signalCode = null;
     this.ignoreSigterm = ignoreSigterm;
     this.signals = [];
+    this.stderr = {
+      destroyed: false,
+      destroy() { this.destroyed = true; },
+    };
   }
 
   kill(signal) {
@@ -40,6 +44,7 @@ await cleanupChrome(
   { timeoutMs: 20 },
 );
 assert.deepEqual(gracefulChild.signals, ["SIGTERM"], "正常退出时不应发送强制结束信号");
+assert.equal(gracefulChild.stderr.destroyed, true, "清理前应断开可能被后台进程继承的 stderr 管道");
 await assert.rejects(fs.access(gracefulProfile), { code: "ENOENT" }, "进程退出后应删除浏览器临时目录");
 
 const forcedProfile = await createProfileDirectory();

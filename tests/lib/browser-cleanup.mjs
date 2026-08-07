@@ -64,6 +64,9 @@ export async function cleanupChrome(chrome, options = {}) {
     onCleanupWarning = (message) => console.warn(message),
     removeProfile = fs.rm,
   } = options;
+  // Crashpad 等进程可能逃离 Chrome 进程组却继续持有 stderr；先断开管道，避免 Node 事件循环悬挂。
+  chrome.child?.stdout?.destroy?.();
+  chrome.child?.stderr?.destroy?.();
   // Linux CI 中 Chrome 的渲染器可能在主进程退出后继续写 Default；需结束整个独立进程组。
   await stopChrome(chrome.child, {
     ...options,
