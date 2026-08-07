@@ -29,7 +29,21 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Run regression tests
-        run: npm test
+        shell: bash
+        run: |
+          set +e
+          npm test 2>&1 | tee /tmp/shiyi-regression-tests.log
+          test_status=${PIPESTATUS[0]}
+          set -e
+          if (( test_status != 0 )); then
+            # 未登录的公开 Actions 页面会隐藏日志，将安全的末尾堆栈同步到任务注解便于定位。
+            error_tail=$(tail -n 30 /tmp/shiyi-regression-tests.log)
+            error_tail=${error_tail//'%'/'%25'}
+            error_tail=${error_tail//$'\r'/'%0D'}
+            error_tail=${error_tail//$'\n'/'%0A'}
+            echo "::error title=Regression tests failed::$error_tail"
+            exit "$test_status"
+          fi
       - name: Build public site
         run: npm run build:web
       - name: Configure GitHub Pages
