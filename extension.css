@@ -2290,8 +2290,8 @@
     position: fixed;
     top: auto;
     right: max(12px, env(safe-area-inset-right));
-    /* 两行操作区共 124px；引导卡始终停在操作坞上方，并额外让出安全区。 */
-    bottom: calc(124px + max(12px, env(safe-area-inset-bottom)));
+    /* 操作区约 124px；再上移 2px，吸收 Linux Chrome 的子像素取整并保留可见间距。 */
+    bottom: calc(126px + max(12px, env(safe-area-inset-bottom)));
     left: max(12px, env(safe-area-inset-left));
     grid-template-columns: 34px minmax(0, 1fr);
     gap: 10px 12px;

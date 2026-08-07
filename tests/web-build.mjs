@@ -111,7 +111,7 @@ assert.match(
 );
 assert.match(
   responsiveCss,
-  /@media \(width <= 650px\)[\s\S]+\.onboarding-guide \{[\s\S]+bottom: calc\(124px \+ max\(12px, env\(safe-area-inset-bottom\)\)\);/,
+  /@media \(width <= 650px\)[\s\S]+\.onboarding-guide \{[\s\S]+bottom: calc\(126px \+ max\(12px, env\(safe-area-inset-bottom\)\)\);/,
   "手机首访引导必须让出底部操作坞和安全区",
 );
 assert.match(
