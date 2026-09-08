@@ -1,0 +1,20 @@
+{
+  "name": "desktop-cat-guard",
+  "productName": "猫猫守卫",
+  "version": "1.0.0",
+  "private": true,
+  "description": "一只提醒你好好休息的桌面小猫",
+  "main": "src/main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test tests/*.test.cjs",
+    "test:desktop": "node tests/desktop.mjs",
+    "package:mac": "electron-packager . CatGuard --platform=darwin --arch=arm64 --out=release --overwrite --asar --icon=assets/icon.icns --app-bundle-id=local.catguard.desktop --ignore=^/tests --ignore=^/release --ignore=^/artifacts",
+    "package:win": "electron-packager . CatGuard --platform=win32 --arch=x64 --out=release --overwrite --asar --ignore=^/tests --ignore=^/release --ignore=^/artifacts"
+  },
+  "devDependencies": {
+    "electron": "44.2.0",
+    "@electron/packager": "20.3.0",
+    "playwright": "1.63.0"
+  }
+}

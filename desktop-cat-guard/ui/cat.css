@@ -1,0 +1,19 @@
+[data-cat] { --fur: #edd3a2; --belly: #fff0d5; --stripe: #c9a778; --outline: #73624d; --pink: #db9d92; }
+[data-cat][data-color="gray"] { --fur: #aebabc; --belly: #e8edef; --stripe: #819194; --outline: #51646b; --pink: #cf9d9d; }
+[data-cat][data-color="peach"] { --fur: #e6af92; --belly: #fff0dc; --stripe: #c78665; --outline: #855e4c; --pink: #d49491; }
+.cat-art { width: 100%; height: 100%; overflow: visible; }
+.cat-breath { transform-origin: 310px 355px; animation: breathe 4.8s ease-in-out infinite; }
+.cat-tail { transform-origin: 435px 308px; animation: tail 6s ease-in-out infinite; }
+.cat-awake { transform-origin: 220px 239px; animation: blink 7s infinite; }
+.cat-eyes { opacity: 0; }
+.sleeping .cat-awake { display: none; }
+.sleeping .cat-eyes { opacity: 1; }
+.cat-zzz { animation: dreaming 5s ease-in-out infinite; }
+.awake .cat-zzz { opacity: 0; animation: none; }
+.petting .cat-art { animation: pet .7s ease; }
+@keyframes breathe { 0%,100% { transform: scale(1,1); } 50% { transform: scale(1.012,1.023); } }
+@keyframes tail { 0%,100% { transform: rotate(0deg); } 45% { transform: rotate(-8deg); } 65% { transform: rotate(-3deg); } }
+@keyframes blink { 0%,42%,46%,81%,85%,100% { transform: scaleY(1); } 44%,83% { transform: scaleY(.08); } }
+@keyframes dreaming { 0%,100% { transform: translateY(5px); opacity: .1; } 45% { transform: translateY(-8px); opacity: .55; } }
+@keyframes pet { 30% { transform: translateY(-6px) rotate(-1deg); } 60% { transform: translateY(2px) rotate(.5deg); } }
+@media (prefers-reduced-motion: reduce) { .cat-art *,.petting .cat-art { animation: none !important; } }
