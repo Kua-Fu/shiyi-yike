@@ -82,8 +82,20 @@ p { line-height: 1.9; }
 .entity-index { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .topic-index { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .entity-index a, .topic-index a { min-height: 95px; padding: 17px; border: 1px solid var(--line); background: #fffdf74f; text-decoration: none; display: grid; align-content: center; gap: 7px; }
+.entity-index > li { display: grid; }
+.entity-index > li > a { min-height: 150px; align-content: start; }
 .entity-index strong, .topic-index strong { color: var(--accent); font-size: 18px; }
 .entity-index span, .entity-index small, .topic-index small { color: var(--ink-soft); font: 400 11px/1.4 var(--sans); }
+.entity-index .author-epithet { color: var(--accent); font: 600 13px/1.4 var(--serif); }
+.author-page-epithet { margin: 16px 0 0; color: var(--accent); font: 600 17px/1.5 var(--serif); letter-spacing: .12em; }
+.author-epithet-source { margin: 8px 0 0; color: var(--ink-soft); font: 11px/1.6 var(--sans); }
+.author-epithet-source a { color: var(--accent); text-underline-offset: 3px; }
+.author-directory-search { margin-top: 34px; display: grid; gap: 8px; }
+.author-directory-search label { color: var(--ink-soft); font: 600 13px/1.4 var(--sans); }
+.author-directory-search input { width: min(100%, 420px); min-height: 46px; padding: 10px 13px; border: 1px solid var(--line); border-radius: 2px; color: var(--ink); background: #fffdf7; font: 14px/1.4 var(--sans); }
+.author-directory-search p, .author-directory-empty { margin: 0; color: var(--ink-soft); font: 13px/1.7 var(--sans); }
+.author-directory-empty { margin-top: 26px; }
+.entity-index li[hidden], .author-directory-empty[hidden] { display: none; }
 .author-profile > p:first-of-type { font-size: 16px; }
 .content-list li { padding: 18px 20px; border: 1px solid var(--line); background: #fffdf74f; }
 .poem-card-main { text-decoration: none; display: grid; gap: 7px; }

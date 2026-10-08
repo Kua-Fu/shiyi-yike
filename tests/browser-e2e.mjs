@@ -214,6 +214,12 @@ try {
   await navigate(cdp, `${origin}/newtab.html`);
   await waitFor(cdp, `!document.querySelector("#search-trigger").disabled`);
   assert.ok(await evaluate(cdp, `document.querySelector(".poem-title").textContent.length > 0`));
+  await evaluate(cdp, `(() => { const input = document.querySelector("#author-input"); input.focus(); input.value = "诗仙"; input.dispatchEvent(new Event("input", { bubbles: true })); })()`);
+  await waitFor(cdp, `document.querySelectorAll("#author-options .author-option").length === 1`);
+  assert.match(await evaluate(cdp, `document.querySelector("#author-options .author-option").textContent`), /李白 · 诗仙/);
+  await evaluate(cdp, `(() => { const input = document.querySelector("#author-input"); input.value = "诗圣"; input.dispatchEvent(new Event("input", { bubbles: true })); })()`);
+  assert.match(await evaluate(cdp, `document.querySelector("#author-options .author-option").textContent`), /杜甫 · 诗圣/);
+  await evaluate(cdp, `document.querySelector("#author-input").blur()`);
 
   const axTree = await cdp.send("Accessibility.getFullAXTree");
   const unnamedControls = axTree.nodes.filter((node) =>
@@ -260,6 +266,17 @@ try {
   await waitFor(cdp, `document.querySelectorAll("#search-results .poem-list-item").length > 0`);
   assert.equal(await evaluate(cdp, `document.querySelector("#search-results .poem-list-item-title").textContent`), "静夜思");
   assert.ok(await evaluate(cdp, `document.querySelectorAll("#search-results mark.search-match").length > 0`));
+  await evaluate(cdp, `(() => { const input = document.querySelector("#global-search-input"); input.value = "诗仙"; input.dispatchEvent(new Event("input", { bubbles: true })); })()`);
+  await waitFor(cdp, `document.querySelector("#search-results .poem-list-item-meta")?.textContent.includes("诗仙")`);
+  assert.equal(await evaluate(cdp, `[...document.querySelectorAll("#search-results .poem-list-item-meta")].every((item) => item.textContent.includes("李白 · 诗仙"))`), true);
+  await evaluate(cdp, `document.querySelector("#search-results .poem-list-item").click()`);
+  await waitFor(cdp, `!document.querySelector("#search-dialog").open`);
+  assert.match(await evaluate(cdp, `document.querySelector(".author-filter").textContent`), /李白 · 诗仙/);
+  await evaluate(cdp, `document.querySelector(".author-filter").click()`);
+  await waitFor(cdp, `document.querySelector("#author-dialog").open`);
+  assert.equal(await evaluate(cdp, `document.querySelector("#author-dialog-epithet").textContent`), "称号 · 诗仙");
+  assert.equal(await evaluate(cdp, `document.querySelector("#author-dialog-epithet").hidden`), false);
+  await evaluate(cdp, `document.querySelector("#author-dialog-close").click()`);
 
   await navigate(cdp, `${origin}/newtab.html?poem=seed-tang-9d4a83c5a8d5fcd77de1`);
   await waitFor(cdp, `document.querySelector(".poem-title")?.textContent === "望岳"`);
@@ -307,6 +324,18 @@ try {
   });
   assert.equal(await evaluate(cdp, `matchMedia("(forced-colors: active)").matches`), true);
   assert.notEqual(await evaluate(cdp, `getComputedStyle(document.querySelector("#next-action")).borderTopStyle`), "none");
+  await cdp.send("Emulation.setEmulatedMedia", { media: "screen", features: [] });
+  await cdp.send("Emulation.clearDeviceMetricsOverride");
+  await navigate(cdp, `${origin}/authors/`);
+  const authorCardHeights = await evaluate(cdp, `[...document.querySelectorAll("#author-directory-list > li > a")].map((card) => Math.round(card.getBoundingClientRect().height))`);
+  assert.equal(new Set(authorCardHeights).size, 1, "有称号和无称号的诗人卡片应等高");
+  await evaluate(cdp, `(() => { const input = document.querySelector("#author-directory-query"); input.value = "诗仙"; input.dispatchEvent(new Event("input", { bubbles: true })); })()`);
+  await waitFor(cdp, `document.querySelector("#author-directory-status").textContent === "找到 1 位诗人"`);
+  assert.equal(await evaluate(cdp, `[...document.querySelectorAll("#author-directory-list > li:not([hidden])")].map((item) => item.dataset.name).join(",")`), "李白");
+  await evaluate(cdp, `(() => { const input = document.querySelector("#author-directory-query"); input.value = "诗圣"; input.dispatchEvent(new Event("input", { bubbles: true })); })()`);
+  assert.equal(await evaluate(cdp, `[...document.querySelectorAll("#author-directory-list > li:not([hidden])")].map((item) => item.dataset.name).join(",")`), "杜甫");
+  await evaluate(cdp, `(() => { const input = document.querySelector("#author-directory-query"); input.value = "不存在的称号"; input.dispatchEvent(new Event("input", { bubbles: true })); })()`);
+  assert.equal(await evaluate(cdp, `document.querySelector("#author-directory-empty").hidden`), false);
   assert.deepEqual(runtimeErrors, [], "真实浏览器运行期间不应出现脚本错误或警告日志");
 } finally {
   cdp?.close();
@@ -314,4 +343,4 @@ try {
   await new Promise((resolve) => server.close(resolve));
 }
 
-console.log("✓ 真实 Chrome 深链接、搜索、移动布局、无障碍名称、主题对比度与高对比度模式均通过验收");
+console.log("✓ 真实 Chrome 深链接、称号搜索、移动布局、无障碍名称、主题对比度与高对比度模式均通过验收");

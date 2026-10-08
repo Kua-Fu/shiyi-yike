@@ -16,6 +16,7 @@ const runtimeEntries = [
   "poem-page.css",
   "app.js",
   "author-library.js",
+  "author-directory.js",
   "reader-config.js",
   "reader-routing.js",
   "reader-appearance.css",

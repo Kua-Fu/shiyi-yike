@@ -25,7 +25,7 @@ import {
   highlightTextSegments,
   normalizeSearchText,
 } from "./search-core.js";
-import { authorKey, createAuthorChoices, poemMatchesAuthor } from "./author-library.js";
+import { AUTHOR_EPITHET_SOURCE_URL, authorEpithet, authorKey, authorSearchText, createAuthorChoices, poemMatchesAuthor } from "./author-library.js";
 import { isWebReader, requestedPoemId, syncPoemUrl } from "./reader-routing.js";
 import {
   AUTO_NEXT_INTERVALS,
@@ -271,6 +271,7 @@ const elements = {
   searchEmpty: document.querySelector("#search-empty"),
   authorDialog: document.querySelector("#author-dialog"),
   authorDialogName: document.querySelector("#author-dialog-name"),
+  authorDialogEpithet: document.querySelector("#author-dialog-epithet"),
   authorDialogMeta: document.querySelector("#author-dialog-meta"),
   authorDialogBiography: document.querySelector("#author-dialog-biography"),
   authorDialogSource: document.querySelector("#author-dialog-source"),
@@ -1043,9 +1044,10 @@ function renderAuthorSuggestions() {
   const query = selected && rawQuery === displayText(selected.label)
     ? ""
     : normalizeSearchValue(rawQuery);
+  const terms = query.split(" ").filter(Boolean);
   const visibleChoices = state.authorChoices
     .filter((choice) =>
-      !query || normalizeSearchValue(`${choice.name} ${choice.dynasty}`).includes(query),
+      terms.every((term) => normalizeSearchValue(authorSearchText(choice)).includes(term)),
     )
     .slice(0, 60);
   state.visibleAuthorChoices = visibleChoices;
@@ -1074,10 +1076,10 @@ function renderAuthorSuggestions() {
     fragment.append(option);
   });
   if (!visibleChoices.length) {
-    fragment.append(makeElement("div", "author-options-empty", "没有找到这位作者"));
+    fragment.append(makeElement("div", "author-options-empty", "没有找到这位作者或称号"));
   } else if (!query && state.authorChoices.length > visibleChoices.length) {
     fragment.append(
-      makeElement("div", "author-options-hint", `输入名字可检索全部 ${state.authorChoices.length} 位作者`),
+      makeElement("div", "author-options-hint", `输入姓名或称号可检索全部 ${state.authorChoices.length} 位作者`),
     );
   }
   elements.authorOptions.replaceChildren(fragment);
@@ -1137,7 +1139,7 @@ function renderAuthorCombobox(poems, placeholder) {
   state.authorChoices = createAuthorChoices(poems);
   if (state.author && !selectedAuthorChoice()) clearAuthorFilter();
   const selected = selectedAuthorChoice();
-  setLocalizedAttribute(elements.authorInput, "placeholder", placeholder);
+  setLocalizedAttribute(elements.authorInput, "placeholder", `${placeholder} · 搜姓名或称号`);
   elements.authorInput.value = selected ? displayText(selected.label) : "";
   elements.authorClear.hidden = !selected;
   if (!elements.authorOptions.hidden) renderAuthorSuggestions();
@@ -1319,7 +1321,7 @@ function currentFilterSummary() {
 function poemMatchesListSearch(poem, query) {
   if (!query) return true;
   return normalizeSearchValue(
-    [poem.title, poem.author, poem.dynasty, poem.period, ...poem.tags].join(" "),
+    [poem.title, poem.author, authorEpithet(poem.dynasty, poem.author), poem.dynasty, poem.period, ...poem.tags].join(" "),
   ).includes(query);
 }
 
@@ -1337,10 +1339,11 @@ function createPoemListItem(poem, position, options = {}) {
   const button = makeElement("button", "poem-list-item");
   button.type = "button";
   button.setAttribute("aria-current", String(state.current?.id === poem.id));
+  const epithet = authorEpithet(poem.dynasty, poem.author);
   setLocalizedAttribute(
     button,
     "aria-label",
-    `打开《${poem.title}》，${dynastyLabel(poem.dynasty)}${poem.author}`,
+    `打开《${poem.title}》，${dynastyLabel(poem.dynasty)}${poem.author}${epithet ? `，${epithet}` : ""}`,
   );
   button.title = displayText(`打开《${poem.title}》`);
 
@@ -1352,7 +1355,7 @@ function createPoemListItem(poem, position, options = {}) {
   appendHighlightedText(title, poem.title, options.highlightTerms);
   appendHighlightedText(
     meta,
-    `${poem.dynasty} · ${poem.author}${poem.tags.length ? ` · ${poem.tags.slice(0, 3).join(" / ")}` : ""}`,
+    `${poem.dynasty} · ${poem.author}${epithet ? ` · ${epithet}` : ""}${poem.tags.length ? ` · ${poem.tags.slice(0, 3).join(" / ")}` : ""}`,
     options.highlightTerms,
   );
   main.append(title, meta);
@@ -1434,6 +1437,7 @@ function createEmbeddedSearchRecord(poem) {
     text: normalizeSearchValue([
       poem.title,
       poem.author,
+      authorEpithet(poem.dynasty, poem.author),
       poem.dynasty,
       poem.period,
       poem.category,
@@ -1464,6 +1468,7 @@ function searchMetadata(scope) {
       id: poem.id,
       title: poem.title,
       author: poem.author,
+      epithet: authorEpithet(poem.dynasty, poem.author),
       tags: poem.tags,
       ordinal: poem.ordinal,
     }));
@@ -1583,7 +1588,7 @@ async function renderGlobalSearch() {
 
   if (!query) {
     setSearchLoading(false);
-    setLocalizedText(elements.searchSummary, "题目、作者、原文、译文与标签均可搜索");
+    setLocalizedText(elements.searchSummary, "题目、作者、称号、原文、译文与标签均可搜索");
     setLocalizedText(elements.searchEmpty, "输入几个字，循着诗句与古人相逢");
     elements.searchEmpty.hidden = false;
     return;
@@ -1632,7 +1637,7 @@ async function renderGlobalSearch() {
     elements.searchEmpty.hidden = Boolean(visibleMatches.length);
     setLocalizedText(
       elements.searchEmpty,
-      "没有找到相符的诗词，换个题目、作者或诗句试试",
+      "没有找到相符的诗词，换个题目、作者、称号或诗句试试",
     );
     setLocalizedText(
       elements.searchSummary,
@@ -1672,7 +1677,7 @@ async function openGlobalSearch() {
       normalizeSearchValue(elements.globalSearchInput.value)
     ) return;
     setSearchLoading(false);
-    setLocalizedText(elements.searchSummary, "题目、作者、原文、译文与标签均可搜索");
+    setLocalizedText(elements.searchSummary, "题目、作者、称号、原文、译文与标签均可搜索");
     setLocalizedText(elements.searchEmpty, "输入几个字，循着诗句与古人相逢");
   } catch (error) {
     if (preparationRequestId !== state.searchRequestId) return;
@@ -1767,13 +1772,24 @@ function renderAuthorSource(profile) {
   if (Array.isArray(profile.sourceChanges) && profile.sourceChanges.length) {
     fragments.push(localizedTextNode(` · 已作${profile.sourceChanges.join("、")}`));
   }
+  if (authorEpithet(profile.dynasty, profile.name)) {
+    fragments.push(localizedTextNode(" · 称号参考："));
+    const epithetSource = makeElement("a", "author-dialog-source-link", "北京市语言文字工作委员会办公室");
+    epithetSource.href = AUTHOR_EPITHET_SOURCE_URL;
+    epithetSource.target = "_blank";
+    epithetSource.rel = "noopener noreferrer";
+    fragments.push(epithetSource);
+  }
   elements.authorDialogSource.replaceChildren(...fragments);
 }
 
 function renderActiveAuthorDialog() {
   const profile = state.activeAuthor;
   if (!profile) return;
+  const epithet = authorEpithet(profile.dynasty, profile.name);
   setLocalizedText(elements.authorDialogName, profile.name);
+  setLocalizedText(elements.authorDialogEpithet, epithet ? `称号 · ${epithet}` : "");
+  elements.authorDialogEpithet.hidden = !epithet;
   setLocalizedText(
     elements.authorDialogMeta,
     `${dynastyLabel(profile.dynasty)} · ${profile.role} · 诗库收录 ${profile.works} ${profile.unit}`,
@@ -1867,12 +1883,13 @@ function createAuthorLine(poem) {
   line.append(makeElement("span", "", poem.dynasty), makeElement("span", "", "·"));
   line.children[1].setAttribute("aria-hidden", "true");
 
+  const epithet = authorEpithet(poem.dynasty, poem.author);
   const button = makeElement("button", "author-filter");
   button.type = "button";
-  setLocalizedAttribute(button, "aria-label", `查看${poem.author}的人物简介`);
-  button.title = displayText(`查看${poem.author}的人物简介`);
+  setLocalizedAttribute(button, "aria-label", `查看${poem.author}${epithet ? `（${epithet}）` : ""}的人物简介`);
+  button.title = displayText(`查看${poem.author}${epithet ? `（${epithet}）` : ""}的人物简介`);
   button.append(
-    makeElement("span", "", poem.author),
+    makeElement("span", "", `${poem.author}${epithet ? ` · ${epithet}` : ""}`),
     makeElement("span", "author-filter-hint", "人物小传"),
   );
   button.lastElementChild.setAttribute("aria-hidden", "true");

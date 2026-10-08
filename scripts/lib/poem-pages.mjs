@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { AUTHOR_EPITHET_SOURCE_URL, authorEpithet } from "../../author-library.js";
 
 const SITE_ORIGIN = "https://poetries.cn";
 const TRANSLATION_DATASET_URL = "https://huggingface.co/datasets/Papersnake/gushiwen";
@@ -293,13 +294,20 @@ function groupPoemsByTopic(poems) {
   return [...groups.values()].sort((left, right) => right.poems.length - left.poems.length || left.name.localeCompare(right.name, "zh-CN"));
 }
 
+function renderEpithetSource() {
+  return `<p class="author-epithet-source">称号参考：<a href="${AUTHOR_EPITHET_SOURCE_URL}" target="_blank" rel="noopener noreferrer">北京市语言文字工作委员会办公室</a></p>`;
+}
+
 function renderAuthorIndex(groups) {
   const canonical = `${SITE_ORIGIN}/authors/`;
   const title = "古诗词诗人目录｜49 位诗人的已校精读｜诗意一刻";
   const description = `按诗人浏览 ${groups.length} 位作者的 100 篇已校订古诗词精读，每个诗人页均包含来源可追溯的小传和站内作品。`;
-  const items = groups.map((group) => `<li><a href="${encodeURIComponent(group.key)}/"><strong>${escapeHtml(group.name)}</strong><span>${escapeHtml(group.dynasty)}代</span><small>${group.poems.length} 篇精读</small></a></li>`).join("\n");
+  const items = groups.map((group) => {
+    const epithet = authorEpithet(group.dynasty, group.name);
+    return `<li data-name="${escapeHtml(group.name)}" data-dynasty="${escapeHtml(group.dynasty)}" data-epithet="${escapeHtml(epithet)}"><a href="${encodeURIComponent(group.key)}/"><strong>${escapeHtml(group.name)}</strong>${epithet ? `<span class="author-epithet">${escapeHtml(epithet)}</span>` : ""}<span>${escapeHtml(group.dynasty)}代</span><small>${group.poems.length} 篇精读</small></a></li>`;
+  }).join("\n");
   const structuredData = { "@context": "https://schema.org", "@type": "CollectionPage", name: title, description, url: canonical, numberOfItems: groups.length };
-  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">${metaTags({ title, description, canonical, cssPrefix: "../", structuredData })}</head><body>${renderHeader("../")}<main><article>${renderBreadcrumb([{ label: "首页", href: "../" }, { label: "诗人目录" }])}<p class="eyebrow">按诗人阅读</p><h1>从一位诗人，读向他的时代</h1><p class="lead">这里只为已有完整精读的诗人建立页面，不用空壳资料页扩充数量。</p><ul class="entity-index">${items}</ul></article></main>${renderFooter("../")}</body></html>\n`;
+  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">${metaTags({ title, description, canonical, cssPrefix: "../", structuredData })}<script type="module" src="../author-directory.js"></script></head><body>${renderHeader("../")}<main><article>${renderBreadcrumb([{ label: "首页", href: "../" }, { label: "诗人目录" }])}<p class="eyebrow">按诗人阅读</p><h1>从一位诗人，读向他的时代</h1><p class="lead">这里只为已有完整精读的诗人建立页面，不用空壳资料页扩充数量。</p>${renderEpithetSource()}<div class="author-directory-search"><label for="author-directory-query">搜索诗人或称号</label><input id="author-directory-query" type="search" placeholder="例如：李白、诗仙、诗圣" autocomplete="off" aria-controls="author-directory-list"><p id="author-directory-status" role="status" aria-live="polite">共 ${groups.length} 位诗人</p></div><ul id="author-directory-list" class="entity-index">${items}</ul><p id="author-directory-empty" class="author-directory-empty" hidden>没有找到符合条件的诗人</p></article></main>${renderFooter("../")}</body></html>\n`;
 }
 
 function profileSourceUrl(profile, authorData) {
@@ -310,7 +318,8 @@ function profileSourceUrl(profile, authorData) {
 
 function renderAuthorPage(group, profile, authorData) {
   const canonical = `${SITE_ORIGIN}/authors/${encodeURIComponent(group.key)}/`;
-  const title = `${group.dynasty}代${group.name}诗词｜原文、译文与精读｜诗意一刻`;
+  const epithet = authorEpithet(group.dynasty, group.name);
+  const title = `${group.dynasty}代${group.name}${epithet ? `（${epithet}）` : ""}诗词｜原文、译文与精读｜诗意一刻`;
   const description = `${group.dynasty}代${group.name}诗词精选：收录 ${group.poems.length} 篇已校订精读，含原文、译文、注释、篇章导览和内容依据。`;
   const sourceUrl = profileSourceUrl(profile, authorData);
   const topics = [...new Set(group.poems.flatMap((poem) => poem.tags))];
@@ -323,7 +332,7 @@ function renderAuthorPage(group, profile, authorData) {
     "@context": "https://schema.org",
     "@graph": [
       { "@type": "CollectionPage", "@id": canonical, name: title, description, url: canonical, mainEntity: { "@id": `${canonical}#person` } },
-      { "@type": "Person", "@id": `${canonical}#person`, name: group.name, description: profileText, url: canonical },
+      { "@type": "Person", "@id": `${canonical}#person`, name: group.name, ...(epithet ? { alternateName: epithet } : {}), description: profileText, url: canonical },
       breadcrumbData([
         { name: "首页", url: `${SITE_ORIGIN}/` },
         { name: "诗人目录", url: `${SITE_ORIGIN}/authors/` },
@@ -331,7 +340,7 @@ function renderAuthorPage(group, profile, authorData) {
       ]),
     ],
   };
-  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">${metaTags({ title, description, canonical, cssPrefix: "../../", structuredData })}</head><body>${renderHeader("../../")}<main><article>${renderBreadcrumb([{ label: "首页", href: "../../" }, { label: "诗人目录", href: "../" }, { label: group.name }])}<p class="eyebrow">${escapeHtml(group.dynasty)}代诗人 · ${group.poems.length} 篇已校精读</p><h1>${escapeHtml(group.name)}</h1><ul class="trust-strip" aria-label="页面内容状态"><li>只收录已校作品</li><li>作者资料标明来源</li></ul><section class="author-profile" aria-labelledby="profile-title"><h2 id="profile-title">作者小传</h2><p>${escapeHtml(profileText)}</p><p class="source-note">资料来源：${sourceLine}${profile?.sourceLicense ? `；许可标注：${escapeHtml(profile.sourceLicense)}` : ""}${profile?.sourceChanges?.length ? `；本页版本经过${escapeHtml(profile.sourceChanges.join("、"))}` : ""}。</p></section><section aria-labelledby="works-title"><h2 id="works-title">站内精读作品</h2><ul class="content-list">${renderPoemCards(group.poems, { showAuthorLinks: false })}</ul></section><section aria-labelledby="author-topics-title"><h2 id="author-topics-title">相关主题</h2><div class="tags">${topics.map((tag) => `<a href="${internalTopicHref(tag)}"># ${escapeHtml(tag)}</a>`).join("")}</div></section></article></main>${renderFooter("../../")}</body></html>\n`;
+  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">${metaTags({ title, description, canonical, cssPrefix: "../../", structuredData })}</head><body>${renderHeader("../../")}<main><article>${renderBreadcrumb([{ label: "首页", href: "../../" }, { label: "诗人目录", href: "../" }, { label: group.name }])}<p class="eyebrow">${escapeHtml(group.dynasty)}代诗人 · ${group.poems.length} 篇已校精读</p><h1>${escapeHtml(group.name)}</h1>${epithet ? `<p class="author-page-epithet">称号 · ${escapeHtml(epithet)}</p>${renderEpithetSource()}` : ""}<ul class="trust-strip" aria-label="页面内容状态"><li>只收录已校作品</li><li>作者资料标明来源</li></ul><section class="author-profile" aria-labelledby="profile-title"><h2 id="profile-title">作者小传</h2><p>${escapeHtml(profileText)}</p><p class="source-note">资料来源：${sourceLine}${profile?.sourceLicense ? `；许可标注：${escapeHtml(profile.sourceLicense)}` : ""}${profile?.sourceChanges?.length ? `；本页版本经过${escapeHtml(profile.sourceChanges.join("、"))}` : ""}。</p></section><section aria-labelledby="works-title"><h2 id="works-title">站内精读作品</h2><ul class="content-list">${renderPoemCards(group.poems, { showAuthorLinks: false })}</ul></section><section aria-labelledby="author-topics-title"><h2 id="author-topics-title">相关主题</h2><div class="tags">${topics.map((tag) => `<a href="${internalTopicHref(tag)}"># ${escapeHtml(tag)}</a>`).join("")}</div></section></article></main>${renderFooter("../../")}</body></html>\n`;
 }
 
 function renderTopicIndex(groups) {

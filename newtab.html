@@ -586,13 +586,13 @@
           <div>
             <div class="poem-list-kicker">当前范围寻诗</div>
             <h2 id="search-dialog-title">搜索诗词</h2>
-            <p id="search-summary" aria-live="polite">题目、作者、原文、译文与标签均可搜索</p>
+            <p id="search-summary" aria-live="polite">题目、作者、称号、原文、译文与标签均可搜索</p>
           </div>
           <button id="search-dialog-close" class="poem-list-close" type="button" aria-label="关闭诗词搜索">×</button>
         </header>
         <label class="poem-list-search search-field">
           <span class="poem-list-search-icon" aria-hidden="true">⌕</span>
-          <input id="global-search-input" type="search" placeholder="输入题目、作者或一句诗" autocomplete="off">
+          <input id="global-search-input" type="search" placeholder="输入题目、作者、称号或一句诗" autocomplete="off">
         </label>
         <div id="search-results" class="poem-list" aria-label="诗词搜索结果" aria-busy="false" hidden></div>
         <p id="search-empty" class="poem-list-empty" role="status">输入几个字，循着诗句与古人相逢</p>
@@ -605,6 +605,7 @@
           <div>
             <div class="author-dialog-kicker">人物小传</div>
             <h2 id="author-dialog-name">诗人 / 词人</h2>
+            <p id="author-dialog-epithet" class="author-dialog-epithet" hidden></p>
             <p id="author-dialog-meta">朝代 · 身份 · 收录作品</p>
           </div>
           <button id="author-dialog-close" class="author-dialog-close" type="button" aria-label="关闭人物简介">×</button>

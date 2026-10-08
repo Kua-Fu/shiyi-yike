@@ -234,6 +234,7 @@ for (const requiredEntry of [
   "CNAME",
   "app.js",
   "author-library.js",
+  "author-directory.js",
   "reader-config.js",
   "reader-routing.js",
   "reader-appearance.css",
@@ -282,9 +283,20 @@ assert.match(firstPoemPage, /href="\.\.\/\.\.\/topics\/%/, "精读页标签应�
 assert.match(firstPoemPage, /<h2 id="related-title">延伸阅读<\/h2>/, "精读页应基于内容关系继续分发站内精读");
 
 const authorDirectory = path.join(siteRoot, "authors");
+const authorIndex = fs.readFileSync(path.join(authorDirectory, "index.html"), "utf8");
+assert.match(authorIndex, /id="author-directory-query"[^>]+placeholder="例如：李白、诗仙、诗圣"/, "诗人目录应提供姓名和称号搜索入口");
+assert.match(authorIndex, /data-name="李白"[^>]+data-epithet="诗仙"/, "目录应展示李白的诗仙称号");
+assert.match(authorIndex, /data-name="杜甫"[^>]+data-epithet="诗圣"/, "目录应展示杜甫的诗圣称号");
+assert.equal((authorIndex.match(/class="author-epithet"/g) ?? []).length, 13, "目录应展示有据可查的 13 位诗人称号");
+assert.match(authorIndex, /称号参考：<a href="https:\/\/jw\.beijing\.gov\.cn\//, "目录应说明称号资料来源");
+assert.match(authorIndex, /src="\.\.\/author-directory\.js"/, "诗人目录应加载筛选功能");
 const authorPages = fs.readdirSync(authorDirectory, { withFileTypes: true })
   .filter((entry) => entry.isDirectory());
 assert.equal(authorPages.length, 49, "只应为现有深度精读覆盖的 49 位诗人生成内容页");
+const liBaiPage = fs.readFileSync(path.join(authorDirectory, "唐-李白", "index.html"), "utf8");
+const duFuPage = fs.readFileSync(path.join(authorDirectory, "唐-杜甫", "index.html"), "utf8");
+assert.match(liBaiPage, /<p class="author-page-epithet">称号 · 诗仙<\/p>/, "李白详情页应展示诗仙称号");
+assert.match(duFuPage, /<p class="author-page-epithet">称号 · 诗圣<\/p>/, "杜甫详情页应展示诗圣称号");
 const firstAuthorPage = fs.readFileSync(path.join(authorDirectory, authorPages[0].name, "index.html"), "utf8");
 assert.match(firstAuthorPage, /<h2 id="profile-title">作者小传<\/h2>/, "诗人页应提供带来源的小传");
 assert.match(firstAuthorPage, /资料来源：/, "诗人页必须公开作者资料来源");

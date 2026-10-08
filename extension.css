@@ -766,6 +766,13 @@
   letter-spacing: .08em;
 }
 
+.author-dialog-header .author-dialog-epithet {
+  margin-top: 7px;
+  color: var(--cinnabar-dark);
+  font: 600 15px/1.4 var(--serif);
+  letter-spacing: .12em;
+}
+
 .author-dialog-close {
   width: 42px;
   height: 42px;

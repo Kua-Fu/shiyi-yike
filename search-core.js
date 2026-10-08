@@ -24,13 +24,15 @@ export function prepareSearchRecord(record, metadata = {}) {
   const [id, text, excerpt] = Array.isArray(record)
     ? record
     : [record.id, record.text, record.excerpt];
+  const epithet = compactSearchText(metadata.epithet);
   return {
     id,
     excerpt: String(excerpt ?? ""),
     ordinal: Number(metadata.ordinal) || 0,
-    searchable: compactSearchText(text),
+    searchable: compactSearchText(`${text} ${epithet}`),
     title: compactSearchText(metadata.title),
     author: compactSearchText(metadata.author),
+    epithet,
     tags: (metadata.tags ?? []).map(compactSearchText),
     excerptSearchable: compactSearchText(excerpt),
   };
@@ -44,8 +46,10 @@ export function scorePreparedRecord(record, query, terms = searchTerms(query)) {
   const compactQuery = compactSearchText(query);
   if (record.title === compactQuery) return 140;
   if (record.author === compactQuery) return 130;
+  if (record.epithet === compactQuery) return 125;
   if (allTermsIn(record.title, terms)) return 115;
   if (allTermsIn(record.author, terms)) return 105;
+  if (allTermsIn(record.epithet, terms)) return 100;
   if (record.tags.some((tag) => tag === compactQuery)) return 95;
   if (record.tags.some((tag) => allTermsIn(tag, terms))) return 85;
   if (record.excerptSearchable.includes(compactQuery)) return 70;
