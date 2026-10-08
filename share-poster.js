@@ -5,10 +5,11 @@ const POSTER_WIDTH = 1080;
 const POSTER_HEIGHT = 1440;
 const PROJECT_READER_URL = "https://poetries.cn/newtab.html";
 
-export function buildShareQrText(poem = {}) {
+export function buildShareQrText(poem = {}, illustrationId = "") {
   const url = new URL(PROJECT_READER_URL);
   const poemId = String(poem.id ?? "").trim();
   if (poemId) url.searchParams.set("poem", poemId);
+  if (poemId && /^illustration-\d+$/.test(illustrationId)) url.hash = illustrationId;
   return url.toString();
 }
 
@@ -24,7 +25,7 @@ export function createQrMatrix(text) {
   };
 }
 
-export function buildShareFileName(poem) {
+export function buildShareFileName(poem, verse = "") {
   const title = String(poem.title ?? "诗词")
     .replace(/[\\/:*?"<>|]/g, "")
     .replace(/\s+/g, "-")
@@ -33,7 +34,11 @@ export function buildShareFileName(poem) {
     .replace(/[\\/:*?"<>|]/g, "")
     .replace(/\s+/g, "-")
     .slice(0, 24);
-  return `诗意一刻-${title}${author ? `-${author}` : ""}.png`;
+  const scene = String(verse ?? "")
+    .replace(/[\\/:*?"<>|]/g, "")
+    .replace(/\s+/g, "-")
+    .slice(0, 24);
+  return `诗意一刻-${title}${author ? `-${author}` : ""}${scene ? `-${scene}` : ""}.png`;
 }
 
 function roundedRect(context, x, y, width, height, radius) {
@@ -144,7 +149,28 @@ function resolvedColor(value, fallback) {
   return normalized || fallback;
 }
 
-export function createSharePoster(canvas, poem, appearance = {}) {
+function drawIllustration(context, image, x, y, width, height, borderColor) {
+  const sourceWidth = image.naturalWidth || image.width;
+  const sourceHeight = image.naturalHeight || image.height;
+  if (!sourceWidth || !sourceHeight) throw new Error("插画尚未加载完成");
+  const sourceRatio = sourceWidth / sourceHeight;
+  const targetRatio = width / height;
+  const cropWidth = sourceRatio > targetRatio ? sourceHeight * targetRatio : sourceWidth;
+  const cropHeight = sourceRatio > targetRatio ? sourceHeight : sourceWidth / targetRatio;
+  const sourceX = (sourceWidth - cropWidth) / 2;
+  const sourceY = (sourceHeight - cropHeight) / 2;
+
+  context.save();
+  roundedRect(context, x, y, width, height, 5);
+  context.clip();
+  context.drawImage(image, sourceX, sourceY, cropWidth, cropHeight, x, y, width, height);
+  context.restore();
+  context.strokeStyle = borderColor;
+  context.lineWidth = 2;
+  context.strokeRect(x, y, width, height);
+}
+
+export function createSharePoster(canvas, poem, appearance = {}, { illustration } = {}) {
   const context = canvas.getContext("2d", { alpha: false });
   if (!context) throw new Error("当前环境无法创建诗词图片");
 
@@ -239,19 +265,28 @@ export function createSharePoster(canvas, poem, appearance = {}) {
   const contentBottom = 1040;
   context.fillStyle = colors.moss;
   context.font = `600 17px ${serif}`;
-  context.letterSpacing = "5px";
-  context.fillText("原 文", POSTER_WIDTH / 2, contentTop - 36);
+  context.letterSpacing = illustration ? "2px" : "5px";
+  context.fillText(illustration ? `逐句入画 · ${illustration.verse}` : "原 文", POSTER_WIDTH / 2, contentTop - 36);
   context.letterSpacing = "0px";
+
+  let poemTop = contentTop;
+  if (illustration) {
+    // 插画只占诗笺正文区，保留题款、原诗和扫码落点，使单图分享仍可辨识作品。
+    const imageY = contentTop + 2;
+    const imageHeight = Math.min(390, contentBottom - imageY - 140);
+    drawIllustration(context, illustration.image, 190, imageY, 700, imageHeight, colors.line);
+    poemTop = imageY + imageHeight + 17;
+  }
 
   const poemLayout = layoutPoem(
     context,
     lines,
     serif,
-    contentBottom - contentTop,
+    contentBottom - poemTop,
   );
   const poemHeight = poemLayout.rows.length * poemLayout.lineHeight;
   const poemStartY =
-    contentTop + Math.max(0, (contentBottom - contentTop - poemHeight) / 2);
+    poemTop + Math.max(0, (contentBottom - poemTop - poemHeight) / 2);
   context.fillStyle = colors.ink;
   context.font = `400 ${poemLayout.fontSize}px ${serif}`;
   context.textAlign = "center";
@@ -286,14 +321,14 @@ export function createSharePoster(canvas, poem, appearance = {}) {
   context.font = `400 20px ${serif}`;
   context.fillText("每日一诗 · 逐句精读", 206, 1223);
   context.font = `400 17px ${serif}`;
-  context.fillText("扫码直达本篇 · 邂逅更多诗意", 206, 1272);
+  context.fillText(illustration ? "扫码直达此图 · 邂逅更多诗意" : "扫码直达本篇 · 邂逅更多诗意", 206, 1272);
 
-  const qrText = buildShareQrText(poem);
+  const qrText = buildShareQrText(poem, illustration?.id);
   drawQrCode(context, qrText, 738, 1124, 220);
   context.fillStyle = colors.inkSoft;
   context.font = `500 17px ${serif}`;
   context.textAlign = "center";
-  context.fillText("扫码直达本篇", 848, 1380);
+  context.fillText(illustration ? "扫码直达此图" : "扫码直达本篇", 848, 1380);
 
   return { excerpt: poemLayout.excerpt, qrText };
 }

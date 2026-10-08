@@ -23,8 +23,14 @@ assert.equal(
   "https://poetries.cn/newtab.html?poem=seed-tang-jing-ye-si",
   "二维码应直达当前作品而非停在官网首页",
 );
+assert.equal(
+  buildShareQrText(poem, "illustration-3"),
+  "https://poetries.cn/newtab.html?poem=seed-tang-jing-ye-si#illustration-3",
+  "插画诗笺二维码应定位到对应配图",
+);
 
 assert.equal(buildShareFileName(poem), "诗意一刻-静夜思-李白.png");
+assert.equal(buildShareFileName(poem, "举头望明月"), "诗意一刻-静夜思-李白-举头望明月.png");
 assert.equal(
   buildShareFileName({ title: '水调歌头/明月?"', author: "苏/轼" }),
   "诗意一刻-水调歌头明月-苏轼.png",

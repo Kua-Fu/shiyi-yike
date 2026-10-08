@@ -22,6 +22,7 @@ function contentType(file) {
   return new Map([
     [".html", "text/html; charset=utf-8"],
     [".js", "text/javascript; charset=utf-8"],
+    [".mjs", "text/javascript; charset=utf-8"],
     [".css", "text/css; charset=utf-8"],
     [".json", "application/json; charset=utf-8"],
     [".woff2", "font/woff2"],
@@ -278,8 +279,27 @@ try {
   assert.equal(await evaluate(cdp, `document.querySelector("#author-dialog-epithet").hidden`), false);
   await evaluate(cdp, `document.querySelector("#author-dialog-close").click()`);
 
+  assert.equal(await evaluate(cdp, `document.querySelectorAll(".reader-illustration-card").length`), 4, "《静夜思》在线赏读应展示四张逐句插画");
+  await evaluate(cdp, `document.querySelector("#illustration-3 .illustration-image-link").click()`);
+  await waitFor(cdp, `document.querySelector(".reader-illustrations .poem-image-dialog").open`);
+  assert.match(
+    await evaluate(cdp, `document.querySelector(".reader-illustrations .poem-image-dialog img").src`),
+    /03-ju-tou-wang-ming-yue\.webp$/,
+    "点击第三张插画应打开对应大图",
+  );
+  await evaluate(cdp, `document.querySelector(".reader-illustrations .poem-image-share").click()`);
+  await waitFor(cdp, `document.querySelector("#share-dialog").open && document.querySelector("#share-loading").hidden`);
+  assert.equal(await evaluate(cdp, `document.querySelector(".reader-illustrations .poem-image-dialog").open`), false, "进入诗笺分享时应关闭大图弹层");
+  assert.match(await evaluate(cdp, `document.querySelector("#share-dialog-status").textContent`), /插画诗笺已生成/);
+  assert.ok(
+    await evaluate(cdp, `document.querySelector("#share-canvas").toDataURL("image/png").length > 50000`),
+    "插画诗笺应生成包含图片的高清 PNG",
+  );
+  await evaluate(cdp, `document.querySelector("#share-dialog-close").click()`);
+
   await navigate(cdp, `${origin}/newtab.html?poem=seed-tang-9d4a83c5a8d5fcd77de1`);
   await waitFor(cdp, `document.querySelector(".poem-title")?.textContent === "望岳"`);
+  assert.equal(await evaluate(cdp, `document.querySelectorAll(".reader-illustration-card").length`), 0, "无配图诗篇不应出现插画区");
   assert.equal(await evaluate(cdp, `document.querySelector("#review-mode-select").value`), "all");
 
   await cdp.send("Emulation.setDeviceMetricsOverride", {

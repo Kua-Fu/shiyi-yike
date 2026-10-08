@@ -1,13 +1,11 @@
-const illustrationGallery = document.querySelector(".poem-illustrations");
-
-if (illustrationGallery) {
+export function initPoemIllustrations(illustrationGallery, { pageUrl, onOpen, onClose, onShareImage, localize = (value) => value } = {}) {
+  if (!illustrationGallery) return;
   const dialog = illustrationGallery.querySelector(".poem-image-dialog");
   const largeImage = dialog.querySelector("img");
   const caption = dialog.querySelector(".poem-image-caption");
   const closeButton = dialog.querySelector(".poem-image-close");
   const shareButton = dialog.querySelector(".poem-image-share");
   const shareStatus = dialog.querySelector(".poem-image-share-status");
-  const canonicalUrl = document.querySelector('link[rel="canonical"]').href;
   let activeLink = null;
 
   async function copyShareText(value) {
@@ -46,6 +44,7 @@ if (illustrationGallery) {
       shareStatus.textContent = "";
       dialog.showModal();
       document.body.classList.add("poem-image-open");
+      onOpen?.();
       closeButton.focus();
     });
   });
@@ -53,7 +52,23 @@ if (illustrationGallery) {
   shareButton.addEventListener("click", async () => {
     if (!activeLink || shareButton.disabled) return;
 
-    const shareUrl = new URL(canonicalUrl);
+    if (onShareImage) {
+      const illustration = {
+        url: activeLink.href,
+        verse: activeLink.dataset.verse,
+        id: activeLink.closest(".illustrated-verse").id,
+      };
+      shareButton.disabled = true;
+      dialog.close();
+      try {
+        await onShareImage(illustration);
+      } finally {
+        shareButton.disabled = false;
+      }
+      return;
+    }
+
+    const shareUrl = new URL(typeof pageUrl === "function" ? pageUrl() : pageUrl || document.querySelector('link[rel="canonical"]')?.href || location.href);
     shareUrl.hash = activeLink.closest(".illustrated-verse").id;
     shareButton.disabled = true;
     shareStatus.textContent = "";
@@ -69,9 +84,9 @@ if (illustrationGallery) {
         }
       }
       await copyShareText(shareUrl.href);
-      shareStatus.textContent = "网页链接已复制，可直接粘贴分享。";
+      shareStatus.textContent = localize("网页链接已复制，可直接粘贴分享。");
     } catch {
-      shareStatus.textContent = "暂时无法复制，请使用浏览器分享页面。";
+      shareStatus.textContent = localize("暂时无法复制，请使用浏览器分享页面。");
     } finally {
       shareButton.disabled = false;
     }
@@ -84,6 +99,9 @@ if (illustrationGallery) {
   dialog.addEventListener("close", () => {
     document.body.classList.remove("poem-image-open");
     largeImage.removeAttribute("src");
-    activeLink?.focus();
+    if (activeLink?.isConnected) activeLink.focus();
+    onClose?.();
   });
 }
+
+initPoemIllustrations(document.querySelector(".poem-illustrations"));

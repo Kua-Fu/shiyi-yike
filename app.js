@@ -27,6 +27,8 @@ import {
 } from "./search-core.js";
 import { AUTHOR_EPITHET_SOURCE_URL, authorEpithet, authorKey, authorSearchText, createAuthorChoices, poemMatchesAuthor } from "./author-library.js";
 import { isWebReader, requestedPoemId, syncPoemUrl } from "./reader-routing.js";
+import { POEM_ILLUSTRATIONS } from "./poem-illustration-data.js";
+import { initPoemIllustrations } from "./poem-illustrations.js";
 import {
   AUTO_NEXT_INTERVALS,
   CHROME_STORE_URL,
@@ -182,6 +184,7 @@ const state = {
   autoNextDeadline: null,
   noticeDismissTimer: null,
   sharePosterPoemId: null,
+  sharePosterVerse: null,
   focusMode: false,
   onboardingStep: "complete",
   isFirstVisit: false,
@@ -694,6 +697,7 @@ function autoNextCanRun() {
     !state.focusMode &&
     !state.emptyCollection &&
     Boolean(state.current) &&
+    !document.querySelector(".reader-illustrations .poem-image-dialog[open]") &&
     filteredPoems().length > 1 &&
     !document.hidden &&
     ![
@@ -701,6 +705,7 @@ function autoNextCanRun() {
       elements.searchDialog,
       elements.authorDialog,
       elements.themeDialog,
+      elements.shareDialog,
       elements.learningDialog,
       elements.puzzleDialog,
     ]
@@ -1978,6 +1983,81 @@ function createOriginal(poem) {
   return section;
 }
 
+function createReaderIllustrations(poem) {
+  const illustrations = POEM_ILLUSTRATIONS[poem.id];
+  if (!isWebReader() || !illustrations) return null;
+
+  const section = makeElement("section", "reader-illustrations poem-illustrations");
+  section.setAttribute("aria-labelledby", "reader-illustrations-title");
+  const heading = makeElement("h2", "reader-illustrations-title", "逐句入画");
+  heading.id = "reader-illustrations-title";
+  const grid = makeElement("div", "reader-illustrations-grid");
+  illustrations.forEach(({ line, file, alt }, index) => {
+    if (!poem.lines.some((verse) => verse.includes(line))) return;
+    const figure = makeElement("figure", "reader-illustration-card illustrated-verse");
+    figure.id = `illustration-${index + 1}`;
+    const link = makeElement("a", "illustration-image-link");
+    link.href = `assets/poem-illustrations/jing-ye-si/${file}`;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.dataset.verse = displayText(line);
+    setLocalizedAttribute(link, "aria-label", `查看第 ${index + 1} 句插画大图：${line}`);
+    const image = makeElement("img", "");
+    image.src = `assets/poem-illustrations/jing-ye-si/${file.replace(/\.webp$/, "-thumb.webp")}`;
+    setLocalizedAttribute(image, "alt", alt);
+    image.width = 720;
+    image.height = 480;
+    image.loading = "lazy";
+    image.decoding = "async";
+    link.append(image);
+    const caption = makeElement("figcaption", "reader-illustration-caption");
+    caption.append(makeElement("span", "reader-illustration-number", String(index + 1).padStart(2, "0")), makeElement("span", "", line));
+    figure.append(link, caption);
+    grid.append(figure);
+  });
+
+  const dialog = makeElement("dialog", "poem-image-dialog");
+  setLocalizedAttribute(dialog, "aria-label", "诗句插画大图");
+  const content = makeElement("div", "poem-image-dialog-content");
+  const closeButton = makeElement("button", "poem-image-close", "×");
+  closeButton.type = "button";
+  setLocalizedAttribute(closeButton, "aria-label", "关闭大图");
+  const largeImage = makeElement("img", "");
+  largeImage.alt = "";
+  largeImage.width = 1536;
+  largeImage.height = 1024;
+  const caption = makeElement("p", "poem-image-caption");
+  const shareButton = makeElement("button", "poem-image-share", "分享这张插画");
+  shareButton.type = "button";
+  const status = makeElement("p", "poem-image-share-status");
+  status.setAttribute("role", "status");
+  status.setAttribute("aria-live", "polite");
+  content.append(closeButton, largeImage, caption, shareButton, status);
+  dialog.append(content);
+  section.append(heading, grid, dialog);
+  initPoemIllustrations(section, {
+    pageUrl: () => {
+      const url = new URL(location.href);
+      url.search = "";
+      url.searchParams.set("poem", poem.id);
+      url.hash = "";
+      return url.href;
+    },
+    onOpen: clearAutoNextTimer,
+    onClose: scheduleAutoNext,
+    onShareImage: async (illustration) => {
+      try {
+        await openShareDialog({ illustration });
+      } catch (error) {
+        console.error(error);
+        updateNotice("插画诗笺暂时无法生成，请稍后再试");
+      }
+    },
+    localize: displayText,
+  });
+  return section;
+}
+
 function createDeepReadingGuide(poem) {
   const deep = poem.deepReading;
   const block = makeElement("details", "deep-reading-guide");
@@ -2232,6 +2312,7 @@ function exitFocusMode() {
 }
 
 function renderPoem(poem, options = {}) {
+  elements.poem.querySelector(".reader-illustrations .poem-image-dialog[open]")?.close();
   state.current = poem;
   state.emptyCollection = false;
   updateFeedbackLink(poem);
@@ -2249,7 +2330,10 @@ function renderPoem(poem, options = {}) {
 
   const title = makeElement("h1", "poem-title", poem.title);
   if (poem.title.length > 8) title.dataset.longTitle = "true";
-  article.append(title, createAuthorLine(poem), createOriginal(poem), createTags(poem));
+  article.append(title, createAuthorLine(poem), createOriginal(poem));
+  const illustratedSection = createReaderIllustrations(poem);
+  if (illustratedSection) article.append(illustratedSection);
+  article.append(createTags(poem));
   if (hasDeepReading) {
     article.append(createDeepReadingGuide(poem), createLearningCard(poem));
   } else {
@@ -2308,10 +2392,17 @@ function renderPoem(poem, options = {}) {
   renderOnboardingGuide();
   syncPoemUrl(poem.id);
   if (options.scroll !== false) {
-    elements.readingScroll.scrollTo({
-      top: 0,
-      behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
-    });
+    const illustration = /^#illustration-[1-4]$/.test(location.hash)
+      ? illustratedSection?.querySelector(location.hash)
+      : null;
+    if (illustration) {
+      requestAnimationFrame(() => illustration.scrollIntoView({ block: "center" }));
+    } else {
+      elements.readingScroll.scrollTo({
+        top: 0,
+        behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+      });
+    }
   }
 }
 
@@ -3182,11 +3273,23 @@ function canSharePosterFile() {
   }
 }
 
-async function openShareDialog() {
+function loadShareIllustration({ url, verse, id }) {
+  const imageUrl = new URL(url, location.href);
+  if (imageUrl.origin !== location.origin) throw new Error("插画地址必须与页面同源");
+  const image = new Image();
+  return new Promise((resolve, reject) => {
+    image.onload = () => resolve({ image, verse, id });
+    image.onerror = () => reject(new Error("插画加载失败"));
+    image.src = imageUrl.href;
+  });
+}
+
+async function openShareDialog({ illustration } = {}) {
   if (!state.current) return;
   clearAutoNextTimer();
   const poem = state.current;
   state.sharePosterPoemId = null;
+  state.sharePosterVerse = null;
   elements.shareLoading.hidden = false;
   elements.shareCopyAction.disabled = true;
   elements.shareDownloadAction.disabled = true;
@@ -3199,20 +3302,23 @@ async function openShareDialog() {
 
   try {
     const { createSharePoster } = await loadSharePosterModule();
+    const loadedIllustration = illustration ? await loadShareIllustration(illustration) : null;
     if (document.fonts?.ready) await document.fonts.ready;
     createSharePoster(
       elements.shareCanvas,
       localizedSharePoem(poem),
       shareAppearance(),
+      { illustration: loadedIllustration },
     );
     if (!elements.shareDialog.open || state.current?.id !== poem.id) return;
     state.sharePosterPoemId = poem.id;
+    state.sharePosterVerse = loadedIllustration?.verse ?? null;
     elements.shareLoading.hidden = true;
     elements.shareCopyAction.disabled = false;
     elements.shareDownloadAction.disabled = false;
     setLocalizedText(
       elements.shareDialogStatus,
-      "高清 PNG 已生成；二维码可直接打开当前诗篇。",
+      loadedIllustration ? "插画诗笺已生成；二维码可直达对应图片。" : "高清 PNG 已生成；二维码可直接打开当前诗篇。",
     );
     elements.shareDownloadAction.focus({ preventScroll: true });
   } catch (error) {
@@ -3263,7 +3369,7 @@ async function shareOrDownloadPoster() {
     const { buildShareFileName } = await loadSharePosterModule();
     const localizedPoem = localizedSharePoem(state.current);
     const blob = await shareCanvasBlob();
-    const fileName = buildShareFileName(localizedPoem);
+    const fileName = buildShareFileName(localizedPoem, state.sharePosterVerse);
     if (canSharePosterFile()) {
       const file = new File([blob], fileName, { type: "image/png" });
       try {
@@ -3645,6 +3751,7 @@ function bindEvents() {
   });
   elements.shareDialog.addEventListener("close", () => {
     state.sharePosterPoemId = null;
+    state.sharePosterVerse = null;
     scheduleAutoNext();
     if (!elements.shareAction.disabled) {
       elements.shareAction.focus({ preventScroll: true });

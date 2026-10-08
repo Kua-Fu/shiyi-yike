@@ -230,6 +230,7 @@ for (const requiredEntry of [
   "landing.css",
   "poem-page.css",
   "poem-illustrations.js",
+  "poem-illustration-data.js",
   "robots.txt",
   "sitemap.xml",
   "CNAME",
@@ -239,6 +240,7 @@ for (const requiredEntry of [
   "reader-config.js",
   "reader-routing.js",
   "reader-appearance.css",
+  "reader-illustrations.css",
   "storage-adapter.js",
   "search-core.js",
   "search-worker.js",
@@ -290,7 +292,7 @@ const jingYeSiPage = fs.readFileSync(
 const illustratedSection = jingYeSiPage.match(/<section class="poem-illustrations"[\s\S]+?<\/section>/)?.[0];
 assert.ok(illustratedSection, "《静夜思》应在原文后展示逐句插画");
 assert.equal((illustratedSection.match(/class="illustrated-verse"/g) ?? []).length, 4, "每句诗应有一张插画");
-assert.match(jingYeSiPage, /<script src="\.\.\/\.\.\/poem-illustrations\.js" defer><\/script>/, "诗词详情页应加载插画放大交互");
+assert.match(jingYeSiPage, /<script type="module" src="\.\.\/\.\.\/poem-illustrations\.js"><\/script>/, "诗词详情页应加载插画放大交互");
 assert.match(illustratedSection, /<dialog class="poem-image-dialog" aria-label="诗句插画大图">/, "放大后的插画应在当前页面展示");
 assert.match(illustratedSection, /<button class="poem-image-share" type="button">分享这首诗<\/button>/, "大图窗口应提供诗词分享入口");
 assert.equal((illustratedSection.match(/id="illustration-[1-4]"/g) ?? []).length, 4, "分享链接应能定位到当前配图");
