@@ -4,6 +4,15 @@ import { AUTHOR_EPITHET_SOURCE_URL, authorEpithet } from "../../author-library.j
 
 const SITE_ORIGIN = "https://poetries.cn";
 const TRANSLATION_DATASET_URL = "https://huggingface.co/datasets/Papersnake/gushiwen";
+// 插画按原诗的单句顺序配置，文字仍以校订后的诗文为准。
+const POEM_ILLUSTRATIONS = {
+  "seed-tang-3edd6ae9db9ca94aa34c": [
+    { line: "床前明月光", file: "01-chuang-qian-ming-yue-guang.webp", alt: "白猫李白坐在客舍床前，望着洒进屋内的月光" },
+    { line: "疑是地上霜", file: "02-yi-shi-di-shang-shuang.webp", alt: "白猫李白俯身端详地上的银白月光，仿佛看到一层霜" },
+    { line: "举头望明月", file: "03-ju-tou-wang-ming-yue.webp", alt: "白猫李白在窗边抬起头，望向夜空中的明月" },
+    { line: "低头思故乡", file: "04-di-tou-si-gu-xiang.webp", alt: "白猫李白低头沉思，窗外远处的家乡亮着点点灯火" },
+  ],
+};
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -136,11 +145,42 @@ function renderSourceEvidence(poem, sourceById) {
     .join("\n");
 }
 
+function renderPoemIllustrations(poem) {
+  const illustrations = POEM_ILLUSTRATIONS[poem.id];
+  if (!illustrations) return "";
+  if (illustrations.some(({ line }) => !poem.lines.some((verse) => verse.includes(line)))) {
+    throw new Error(`插画诗句与《${poem.title}》原文不一致`);
+  }
+
+  const basePath = "../../assets/poem-illustrations/jing-ye-si/";
+  const figures = illustrations.map(({ line, file, alt }, index) => `<figure class="illustrated-verse" id="illustration-${index + 1}">
+            <a class="illustration-image-link" href="${basePath}${escapeHtml(file)}" target="_blank" rel="noopener noreferrer" data-verse="${escapeHtml(line)}" aria-label="放大插画：${escapeHtml(line)}。${escapeHtml(alt)}">
+              <img src="${basePath}${escapeHtml(file.replace(/\.webp$/, "-thumb.webp"))}" alt="${escapeHtml(alt)}" width="720" height="480" loading="lazy" decoding="async">
+            </a>
+            <figcaption><span class="verse-number" aria-hidden="true">${String(index + 1).padStart(2, "0")}</span><span>${escapeHtml(line)}</span></figcaption>
+          </figure>`).join("\n");
+
+  return `<section class="poem-illustrations" aria-labelledby="illustrations-title">
+          <h2 id="illustrations-title">逐句入画</h2>
+          <div class="illustration-grid">${figures}</div>
+          <dialog class="poem-image-dialog" aria-label="诗句插画大图">
+            <div class="poem-image-dialog-content">
+              <button class="poem-image-close" type="button" aria-label="关闭大图">×</button>
+              <img alt="" width="1536" height="1024">
+              <p class="poem-image-caption"></p>
+              <button class="poem-image-share" type="button">分享这首诗</button>
+              <p class="poem-image-share-status" role="status" aria-live="polite"></p>
+            </div>
+          </dialog>
+        </section>`;
+}
+
 function renderPoemPage(poem, previous, next, poems, sourceById, editorialPolicy) {
   const title = `《${poem.title}》${poem.author}｜原文、译文、注释与校订依据｜诗意一刻`;
   const description = `${poem.dynasty}代${poem.author}《${poem.title}》原文、白话译文、难词点注、篇章导览与校订来源。${poem.deepReading.guide.summary}`;
   const canonical = poemUrl(poem);
   const lines = poem.lines.map((line) => `<p>${escapeHtml(line)}</p>`).join("\n");
+  const illustratedSection = renderPoemIllustrations(poem);
   const translations = poem.translation.map((line) => `<p>${escapeHtml(line)}</p>`).join("\n");
   const annotations = poem.deepReading.annotations
     .map((item) => `<li><strong>${escapeHtml(item.term)}</strong><span>${escapeHtml(item.gloss)}</span></li>`)
@@ -189,6 +229,7 @@ function renderPoemPage(poem, previous, next, poems, sourceById, editorialPolicy
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     ${metaTags({ title, description, canonical, cssPrefix: "../../", type: "article", structuredData })}
+    ${illustratedSection ? `<script src="../../poem-illustrations.js" defer></script>` : ""}
   </head>
   <body>
     ${renderHeader("../../")}
@@ -209,6 +250,7 @@ function renderPoemPage(poem, previous, next, poems, sourceById, editorialPolicy
           <h2 id="original-title">原文</h2>
           <div class="verses">${lines}</div>
         </section>
+        ${illustratedSection}
         <div class="tags" aria-label="诗词主题">${tags}</div>
         <section aria-labelledby="translation-title">
           <h2 id="translation-title">白话译文</h2>

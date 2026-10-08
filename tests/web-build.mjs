@@ -229,6 +229,7 @@ for (const requiredEntry of [
   "privacy.html",
   "landing.css",
   "poem-page.css",
+  "poem-illustrations.js",
   "robots.txt",
   "sitemap.xml",
   "CNAME",
@@ -281,6 +282,38 @@ assert.match(firstPoemPage, /不等同于对上游内容的版权担保/, "精�
 assert.match(firstPoemPage, /href="\.\.\/\.\.\/authors\/%/, "精读页作者名应链接到诗人聚合页");
 assert.match(firstPoemPage, /href="\.\.\/\.\.\/topics\/%/, "精读页标签应链接到主题聚合页");
 assert.match(firstPoemPage, /<h2 id="related-title">延伸阅读<\/h2>/, "精读页应基于内容关系继续分发站内精读");
+
+const jingYeSiPage = fs.readFileSync(
+  path.join(poemDirectory, "seed-tang-3edd6ae9db9ca94aa34c", "index.html"),
+  "utf8",
+);
+const illustratedSection = jingYeSiPage.match(/<section class="poem-illustrations"[\s\S]+?<\/section>/)?.[0];
+assert.ok(illustratedSection, "《静夜思》应在原文后展示逐句插画");
+assert.equal((illustratedSection.match(/class="illustrated-verse"/g) ?? []).length, 4, "每句诗应有一张插画");
+assert.match(jingYeSiPage, /<script src="\.\.\/\.\.\/poem-illustrations\.js" defer><\/script>/, "诗词详情页应加载插画放大交互");
+assert.match(illustratedSection, /<dialog class="poem-image-dialog" aria-label="诗句插画大图">/, "放大后的插画应在当前页面展示");
+assert.match(illustratedSection, /<button class="poem-image-share" type="button">分享这首诗<\/button>/, "大图窗口应提供诗词分享入口");
+assert.equal((illustratedSection.match(/id="illustration-[1-4]"/g) ?? []).length, 4, "分享链接应能定位到当前配图");
+const illustratedVerses = [
+  ["床前明月光", "01-chuang-qian-ming-yue-guang.webp"],
+  ["疑是地上霜", "02-yi-shi-di-shang-shuang.webp"],
+  ["举头望明月", "03-ju-tou-wang-ming-yue.webp"],
+  ["低头思故乡", "04-di-tou-si-gu-xiang.webp"],
+];
+let previousVersePosition = -1;
+for (const [verse, file] of illustratedVerses) {
+  const position = illustratedSection.indexOf(verse);
+  assert.ok(position > previousVersePosition, `逐句插画顺序有误：${verse}`);
+  previousVersePosition = position;
+  const thumbFile = file.replace(/\.webp$/, "-thumb.webp");
+  assert.ok(illustratedSection.includes(`src="../../assets/poem-illustrations/jing-ye-si/${thumbFile}"`), `页面应先加载缩略图：${verse}`);
+  assert.ok(illustratedSection.includes(`href="../../assets/poem-illustrations/jing-ye-si/${file}"`), `插画应能打开大图：${verse}`);
+  assert.ok(fs.existsSync(path.join(siteRoot, "assets/poem-illustrations/jing-ye-si", thumbFile)), `发布包缺少缩略图：${thumbFile}`);
+  assert.ok(fs.existsSync(path.join(siteRoot, "assets/poem-illustrations/jing-ye-si", file)), `发布包缺少插画：${file}`);
+}
+assert.ok(jingYeSiPage.indexOf("id=\"original-title\"") < jingYeSiPage.indexOf("id=\"illustrations-title\""), "插画应排在原诗之后");
+assert.ok(jingYeSiPage.indexOf("id=\"illustrations-title\"") < jingYeSiPage.indexOf("id=\"translation-title\""), "插画应排在译文之前");
+assert.equal(fs.existsSync(path.join(siteRoot, "assets/poem-illustrations/jing-ye-si/01-chuang-qian-ming-yue-guang.png")), false, "发布包只需携带压缩版插画");
 
 const authorDirectory = path.join(siteRoot, "authors");
 const authorIndex = fs.readFileSync(path.join(authorDirectory, "index.html"), "utf8");

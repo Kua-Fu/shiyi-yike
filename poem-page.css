@@ -38,6 +38,25 @@ p { line-height: 1.9; }
 .trust-strip li::before { content: "✓"; margin-right: 5px; }
 .verses { font-size: clamp(20px, 4vw, 25px); letter-spacing: .09em; }
 .verses p { margin: 5px 0; }
+.illustration-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.illustrated-verse { min-width: 0; margin: 0; border: 1px solid var(--line); background: #fffdf7; display: grid; grid-template-columns: 44% minmax(0, 1fr); }
+.illustration-image-link { display: block; min-width: 0; overflow: hidden; background: var(--paper-deep); }
+.illustration-image-link img { display: block; width: 100%; height: auto; aspect-ratio: 3 / 2; object-fit: cover; }
+.illustration-image-link:hover img { filter: brightness(1.06); }
+.illustrated-verse figcaption { min-width: 0; padding: 12px 16px; display: flex; flex-direction: column; justify-content: center; gap: 7px; font-size: clamp(17px, 2vw, 20px); line-height: 1.4; letter-spacing: .08em; }
+.verse-number { flex: none; color: var(--accent); font: 600 11px/1 var(--sans); letter-spacing: .04em; }
+body.poem-image-open { overflow: hidden; }
+.poem-image-dialog { width: min(1000px, calc(100vw - 24px)); max-width: none; max-height: calc(100vh - 24px); max-height: calc(100dvh - 24px); padding: 0; border: 1px solid var(--line); color: var(--ink); background: var(--paper); box-shadow: 0 24px 80px #0008; overscroll-behavior: contain; }
+.poem-image-dialog::backdrop { background: #101b22d9; }
+.poem-image-dialog-content { padding: 12px 16px 16px; display: grid; gap: 8px; }
+.poem-image-close { width: 44px; height: 44px; justify-self: end; border: 1px solid var(--line); border-radius: 2px; color: var(--ink); background: #fffdf7; font: 28px/1 var(--sans); cursor: pointer; }
+.poem-image-dialog img { display: block; width: auto; height: auto; max-width: 100%; max-height: calc(100vh - 250px); max-height: calc(100dvh - 250px); margin: auto; object-fit: contain; }
+.poem-image-caption { margin: 0; text-align: center; font: 500 20px/1.5 var(--serif); letter-spacing: .1em; }
+.poem-image-share { min-height: 44px; padding: 0 20px; justify-self: center; border: 1px solid var(--accent); border-radius: 2px; color: #fffdf7; background: var(--accent); font: 600 13px/1 var(--sans); cursor: pointer; }
+.poem-image-share:hover { background: #70271f; }
+.poem-image-share:disabled { opacity: .65; cursor: wait; }
+.poem-image-share-status { margin: 0; color: var(--ink-soft); text-align: center; font: 12px/1.5 var(--sans); }
+.poem-image-share-status:empty { display: none; }
 .tags { margin-top: 24px; display: flex; flex-wrap: wrap; gap: 8px; }
 .tags a { padding: 7px 10px; border: 1px solid #52685070; border-radius: 999px; color: #405840; font: 500 12px/1 var(--sans); text-decoration: none; }
 .tags a:hover { color: var(--accent); border-color: #8a302870; }
@@ -116,6 +135,9 @@ footer nav { display: flex; gap: 18px; font-family: var(--sans); letter-spacing:
   .section-nav > a:not(.reader-link) { display: none; }
   article { padding-top: 48px; }
   .byline { margin-bottom: 36px; }
+  .illustration-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .illustrated-verse { grid-template-columns: 1fr; }
+  .illustrated-verse figcaption { min-height: 49px; padding: 8px; flex-direction: row; align-items: baseline; justify-content: center; gap: 6px; font-size: clamp(15px, 4.2vw, 18px); letter-spacing: .04em; }
   .guide-grid, .provenance-grid, .policy-levels, .directory-links { grid-template-columns: 1fr; }
   .related-reading ul { grid-template-columns: 1fr; }
   .entity-index { grid-template-columns: repeat(2, minmax(0, 1fr)); }
