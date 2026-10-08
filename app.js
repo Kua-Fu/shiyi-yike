@@ -13,13 +13,6 @@ import {
   normalizeLearningProgress,
   scheduleLearningReview,
 } from "./learning-progress.js";
-import {
-  checkPuzzleOrder,
-  createJigsawPath,
-  createPuzzleRounds,
-  movePuzzlePieceToSlot,
-  resolvePuzzleShapeIndex,
-} from "./poem-puzzle.js";
 import { createStorageAdapter } from "./storage-adapter.js";
 import {
   highlightTextSegments,
@@ -29,6 +22,7 @@ import { AUTHOR_EPITHET_SOURCE_URL, authorEpithet, authorKey, authorSearchText, 
 import { isWebReader, requestedPoemId, syncPoemUrl } from "./reader-routing.js";
 import { POEM_ILLUSTRATIONS } from "./poem-illustration-data.js";
 import { initPoemIllustrations } from "./poem-illustrations.js";
+import { loadXingshuFont } from "./reader-resource-loader.js";
 import {
   AUTO_NEXT_INTERVALS,
   CHROME_STORE_URL,
@@ -41,7 +35,6 @@ import {
   ONBOARDING_STEPS,
   PERIOD_ORDER,
   POEM_LIST_PAGE_SIZE,
-  PUZZLE_PIECE_COLORS,
   SEARCH_INPUT_DEBOUNCE_MS,
   STORAGE_KEYS,
   THEMES,
@@ -68,7 +61,8 @@ let TO_TRADITIONAL = (value) => String(value);
 let TO_SIMPLIFIED = (value) => String(value);
 let STATIC_SCRIPT_CONVERTER = { convert() {}, restore() {} };
 let openCCPromise = null;
-let sharePosterModulePromise = null;
+let shareControllerPromise = null;
+let puzzleControllerPromise = null;
 let storageWarningShown = false;
 
 const storageAdapter = createStorageAdapter({
@@ -119,14 +113,47 @@ function loadOpenCC() {
   return openCCPromise;
 }
 
-function loadSharePosterModule() {
-  if (!sharePosterModulePromise) {
-    sharePosterModulePromise = import("./share-poster.js").catch((error) => {
-      sharePosterModulePromise = null;
-      throw error;
-    });
+function loadShareController() {
+  if (!shareControllerPromise) {
+    shareControllerPromise = import("./reader-share.js")
+      .then(({ createShareController }) => createShareController({
+        elements,
+        getCurrentPoem: () => state.current,
+        clearAutoNextTimer,
+        scheduleAutoNext,
+        displayText,
+        dynastyLabel,
+        setLocalizedText,
+      }))
+      .catch((error) => {
+        shareControllerPromise = null;
+        throw error;
+      });
   }
-  return sharePosterModulePromise;
+  return shareControllerPromise;
+}
+
+function loadPuzzleController() {
+  if (!puzzleControllerPromise) {
+    puzzleControllerPromise = import("./reader-puzzle.js")
+      .then(({ createPuzzleController }) => createPuzzleController({
+        elements,
+        getCurrentPoem: () => state.current,
+        isBusy: () => state.busy,
+        clearAutoNextTimer,
+        scheduleAutoNext,
+        updateNotice,
+        setLocalizedText,
+        setLocalizedAttribute,
+        revealWebInstallPrompt,
+        makeElement,
+      }))
+      .catch((error) => {
+        puzzleControllerPromise = null;
+        throw error;
+      });
+  }
+  return puzzleControllerPromise;
 }
 
 const state = {
@@ -159,7 +186,6 @@ const state = {
   readingStats: normalizeReadingStats(null),
   learningProgress: normalizeLearningProgress(null),
   practice: null,
-  puzzle: null,
   chunks: new Map(),
   searchScopePromises: new Map(),
   searchWorker: null,
@@ -183,8 +209,6 @@ const state = {
   autoNextStartedAt: null,
   autoNextDeadline: null,
   noticeDismissTimer: null,
-  sharePosterPoemId: null,
-  sharePosterVerse: null,
   focusMode: false,
   onboardingStep: "complete",
   isFirstVisit: false,
@@ -502,6 +526,26 @@ function applyFont(fontId, options = {}) {
   const font = FONTS.get(normalizedFontId);
   state.font = normalizedFontId;
   document.documentElement.dataset.font = normalizedFontId;
+  if (normalizedFontId === "xingshu") {
+    document.documentElement.dataset.fontLoading = "true";
+    if (options.announce) updateNotice("正在加载行书精读字形…");
+    void loadXingshuFont(DATA_VERSION).then(() => {
+      // 下载期间用户可能已经改选其他字体，不能让迟到的 Promise 覆盖最新选择与提示。
+      if (state.font !== "xingshu") return;
+      delete document.documentElement.dataset.fontLoading;
+      document.documentElement.dataset.fontReady = "xingshu";
+      if (options.announce) updateNotice(`已切换为「${font.name}」`);
+    }).catch((error) => {
+      console.error(error);
+      if (state.font !== "xingshu") return;
+      delete document.documentElement.dataset.fontLoading;
+      delete document.documentElement.dataset.fontReady;
+      if (options.announce) updateNotice("行书暂未加载，已使用系统楷体替代");
+    });
+  } else {
+    delete document.documentElement.dataset.fontLoading;
+    delete document.documentElement.dataset.fontReady;
+  }
   updateAppearanceTrigger();
 
   for (const option of elements.fontOptions) {
@@ -512,7 +556,9 @@ function applyFont(fontId, options = {}) {
   }
 
   if (options.persist) saveFont();
-  if (options.announce) updateNotice(`已切换为「${font.name}」`);
+  if (options.announce && normalizedFontId !== "xingshu") {
+    updateNotice(`已切换为「${font.name}」`);
+  }
 }
 
 async function loadTheme() {
@@ -2047,7 +2093,8 @@ function createReaderIllustrations(poem) {
     onClose: scheduleAutoNext,
     onShareImage: async (illustration) => {
       try {
-        await openShareDialog({ illustration });
+        const controller = await loadShareController();
+        await controller.open({ illustration });
       } catch (error) {
         console.error(error);
         updateNotice("插画诗笺暂时无法生成，请稍后再试");
@@ -2587,426 +2634,15 @@ function rateLearningPractice(rating) {
   );
 }
 
-function currentPuzzleRound() {
-  const puzzle = state.puzzle;
-  return puzzle?.rounds[puzzle.roundIndex] ?? null;
-}
-
-function puzzlePieceById(round, pieceId) {
-  return round.pieces.find((piece) => piece.id === pieceId) ?? null;
-}
-
-function createPuzzleShape(targetIndex, pieceCount, className) {
-  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  svg.classList.add(className);
-  svg.setAttribute("viewBox", "0 0 100 100");
-  svg.setAttribute("aria-hidden", "true");
-  svg.setAttribute("focusable", "false");
-  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  path.setAttribute("d", createJigsawPath(targetIndex, pieceCount));
-  svg.append(path);
-  return svg;
-}
-
-function createPuzzleDragGhost(button, clientX, clientY) {
-  const rect = button.getBoundingClientRect();
-  const ghost = button.cloneNode(true);
-  ghost.classList.add("puzzle-drag-ghost");
-  ghost.removeAttribute("aria-pressed");
-  ghost.setAttribute("aria-hidden", "true");
-  ghost.style.width = `${rect.width}px`;
-  ghost.style.height = `${rect.height}px`;
-  ghost.style.left = `${clientX}px`;
-  ghost.style.top = `${clientY}px`;
-  document.body.append(ghost);
-  return ghost;
-}
-
-function enablePuzzlePieceDrag(button, piece, zone, slotIndex) {
-  button.addEventListener("pointerdown", (event) => {
-    const puzzle = state.puzzle;
-    if (
-      !puzzle ||
-      puzzle.answered ||
-      (event.pointerType === "mouse" && event.button !== 0)
-    ) {
-      return;
-    }
-
-    const pointerId = event.pointerId;
-    const startX = event.clientX;
-    const startY = event.clientY;
-    let dragging = false;
-    let ghost = null;
-    let dropSlot = null;
-
-    const setDropSlot = (nextSlot) => {
-      if (dropSlot === nextSlot) return;
-      delete dropSlot?.dataset.dropTarget;
-      dropSlot = nextSlot;
-      if (dropSlot) dropSlot.dataset.dropTarget = "true";
-    };
-
-    const moveGhost = (moveEvent) => {
-      if (moveEvent.pointerId !== pointerId) return;
-      if (
-        !dragging &&
-        Math.hypot(moveEvent.clientX - startX, moveEvent.clientY - startY) < 7
-      ) {
-        return;
-      }
-      if (!dragging) {
-        dragging = true;
-        button.dataset.dragging = "true";
-        document.body.dataset.puzzleDragging = "true";
-        ghost = createPuzzleDragGhost(button, moveEvent.clientX, moveEvent.clientY);
-      }
-      moveEvent.preventDefault();
-      ghost.style.left = `${moveEvent.clientX}px`;
-      ghost.style.top = `${moveEvent.clientY}px`;
-      const hitTarget = document.elementFromPoint(
-        moveEvent.clientX,
-        moveEvent.clientY,
-      );
-      const nextSlot = hitTarget instanceof Element
-        ? hitTarget.closest(".puzzle-slot")
-        : null;
-      setDropSlot(
-        nextSlot && elements.puzzleAnswer.contains(nextSlot) ? nextSlot : null,
-      );
-    };
-
-    const finishDrag = (finishEvent) => {
-      if (finishEvent.pointerId !== pointerId) return;
-      window.removeEventListener("pointermove", moveGhost);
-      window.removeEventListener("pointerup", finishDrag);
-      window.removeEventListener("pointercancel", finishDrag);
-      delete document.body.dataset.puzzleDragging;
-      delete button.dataset.dragging;
-      ghost?.remove();
-      const targetSlotIndex = Number(dropSlot?.dataset.slotIndex);
-      setDropSlot(null);
-      if (!dragging || finishEvent.type === "pointercancel") return;
-
-      button.dataset.suppressClick = "true";
-      finishEvent.preventDefault();
-      const activePuzzle = state.puzzle;
-      if (
-        !activePuzzle ||
-        activePuzzle.answered ||
-        !Number.isInteger(targetSlotIndex)
-      ) {
-        return;
-      }
-      activePuzzle.placedPieceIds = movePuzzlePieceToSlot(
-        activePuzzle.placedPieceIds,
-        piece.id,
-        targetSlotIndex,
-        zone === "answer" ? slotIndex : null,
-      );
-      activePuzzle.activePieceId = null;
-      renderPuzzleRound({ fallbackToCheck: true });
-    };
-
-    // 在窗口级继续追踪指针，避免手指或鼠标越过原按钮边缘后丢失松手事件。
-    window.addEventListener("pointermove", moveGhost, { passive: false });
-    window.addEventListener("pointerup", finishDrag);
-    window.addEventListener("pointercancel", finishDrag);
-  });
-}
-
-function createPuzzlePieceButton(piece, zone, pieceCount, slotIndex = null) {
-  const button = makeElement("button", "puzzle-piece");
-  const shapeIndex = resolvePuzzleShapeIndex(
-    piece.targetIndex,
-    zone === "answer" ? slotIndex : null,
-  );
-  button.type = "button";
-  button.dataset.puzzlePieceId = piece.id;
-  button.dataset.zone = zone;
-  button.dataset.targetIndex = String(piece.targetIndex);
-  button.style.setProperty(
-    "--puzzle-piece-color",
-    PUZZLE_PIECE_COLORS[piece.targetIndex % PUZZLE_PIECE_COLORS.length],
-  );
-  button.disabled = Boolean(state.puzzle?.answered);
-  button.append(
-    createPuzzleShape(shapeIndex, pieceCount, "puzzle-piece-shape"),
-    makeElement("span", "puzzle-piece-text", piece.text),
-  );
-  setLocalizedAttribute(
-    button,
-    "aria-label",
-    zone === "answer"
-      ? `拼图板第 ${slotIndex + 1} 位是“${piece.text}”，点按取回拼片`
-      : `${state.puzzle?.activePieceId === piece.id ? "已选中" : "选择"}拼片“${piece.text}”`,
-  );
-  button.setAttribute(
-    "aria-pressed",
-    String(zone === "bank" && state.puzzle?.activePieceId === piece.id),
-  );
-  enablePuzzlePieceDrag(button, piece, zone, slotIndex);
-  button.addEventListener("click", () => {
-    if (button.dataset.suppressClick === "true") {
-      delete button.dataset.suppressClick;
-      return;
-    }
-    const puzzle = state.puzzle;
-    if (!puzzle || puzzle.answered) return;
-    if (zone === "answer") {
-      puzzle.placedPieceIds[slotIndex] = null;
-      puzzle.activePieceId = piece.id;
-      renderPuzzleRound({ focusPieceId: piece.id, focusZone: "bank" });
-      return;
-    }
-    puzzle.activePieceId = puzzle.activePieceId === piece.id ? null : piece.id;
-    renderPuzzleRound(
-      puzzle.activePieceId
-        ? { focusZone: "answer", focusEmptySlot: true }
-        : { focusPieceId: piece.id, focusZone: "bank" },
-    );
-  });
-  return button;
-}
-
-function createPuzzleSlot(round, slotIndex, piece) {
-  const slot = makeElement("div", "puzzle-slot");
-  slot.dataset.slotIndex = String(slotIndex);
-  slot.dataset.filled = String(Boolean(piece));
-  slot.append(createPuzzleShape(slotIndex, round.pieces.length, "puzzle-slot-guide"));
-  if (piece) {
-    slot.append(
-      createPuzzlePieceButton(
-        piece,
-        "answer",
-        round.pieces.length,
-        slotIndex,
-      ),
-    );
-    return slot;
-  }
-
-  const button = makeElement("button", "puzzle-slot-action");
-  button.type = "button";
-  button.dataset.puzzleSlotIndex = String(slotIndex);
-  button.disabled = Boolean(state.puzzle?.answered);
-  setLocalizedAttribute(
-    button,
-    "aria-label",
-    state.puzzle?.activePieceId
-      ? `把已选拼片放入第 ${slotIndex + 1} 个空位`
-      : `第 ${slotIndex + 1} 个空位，先从下方选择一块拼片`,
-  );
-  button.addEventListener("click", () => {
-    const puzzle = state.puzzle;
-    if (!puzzle || puzzle.answered || !puzzle.activePieceId) return;
-    puzzle.placedPieceIds = movePuzzlePieceToSlot(
-      puzzle.placedPieceIds,
-      puzzle.activePieceId,
-      slotIndex,
-    );
-    puzzle.activePieceId = null;
-    renderPuzzleRound({ focusZone: "bank", fallbackToCheck: true });
-  });
-  slot.append(button);
-  return slot;
-}
-
-function focusPuzzleTarget({
-  focusPieceId,
-  focusZone,
-  focusEmptySlot,
-  fallbackToCheck,
-} = {}) {
-  const containers = {
-    answer: elements.puzzleAnswer,
-    bank: elements.puzzleBank,
-  };
-  const container = containers[focusZone];
-  const target = container && !focusEmptySlot
-    ? [...container.querySelectorAll("[data-puzzle-piece-id]")].find(
-        (button) => !focusPieceId || button.dataset.puzzlePieceId === focusPieceId,
-      )
-    : null;
-  if (focusEmptySlot) {
-    elements.puzzleAnswer
-      .querySelector("[data-puzzle-slot-index]:not(:disabled)")
-      ?.focus({ preventScroll: true });
-  } else if (target) {
-    target.focus({ preventScroll: true });
-  } else if (fallbackToCheck && !elements.puzzleCheck.disabled) {
-    elements.puzzleCheck.focus({ preventScroll: true });
-  }
-}
-
-function renderPuzzleRound(focusOptions = {}) {
-  const puzzle = state.puzzle;
-  const round = currentPuzzleRound();
-  if (!puzzle || !round) return;
-
-  const total = puzzle.rounds.length;
-  const completed = puzzle.roundIndex + (puzzle.answered ? 1 : 0);
-  setLocalizedText(elements.puzzleStep, `第 ${puzzle.roundIndex + 1} / ${total} 题`);
-  elements.puzzleProgressTrack.setAttribute("aria-valuemax", String(total));
-  elements.puzzleProgressTrack.setAttribute("aria-valuenow", String(completed));
-  elements.puzzleProgressFill.style.width = `${(completed / total) * 100}%`;
-
-  const placedPieces = puzzle.placedPieceIds.map((pieceId) =>
-    pieceId ? puzzlePieceById(round, pieceId) : null,
-  );
-  const placedIds = new Set(puzzle.placedPieceIds.filter(Boolean));
-  const availablePieces = round.pieces.filter((piece) => !placedIds.has(piece.id));
-
-  elements.puzzleAnswer.style.setProperty(
-    "--puzzle-columns",
-    String(round.layout.columns),
-  );
-  elements.puzzleAnswer.style.setProperty(
-    "--puzzle-rows",
-    String(round.layout.rows),
-  );
-  elements.puzzleAnswer.dataset.correct = puzzle.answered
-    ? String(puzzle.roundCorrect)
-    : "";
-  elements.puzzleAnswerEmpty.hidden = placedIds.size > 0;
-  elements.puzzleAnswer.replaceChildren(
-    ...placedPieces.map((piece, slotIndex) =>
-      createPuzzleSlot(round, slotIndex, piece),
-    ),
-    elements.puzzleAnswerEmpty,
-  );
-  elements.puzzleBank.replaceChildren(
-    ...availablePieces.map((piece) =>
-      createPuzzlePieceButton(piece, "bank", round.pieces.length),
-    ),
-  );
-  setLocalizedText(elements.puzzleRemaining, `${availablePieces.length} 块`);
-
-  elements.puzzleReset.disabled = puzzle.answered || !placedIds.size;
-  elements.puzzleCheck.disabled =
-    puzzle.answered || placedIds.size !== round.pieces.length;
-  elements.puzzleCheck.hidden = puzzle.answered;
-  elements.puzzleNext.hidden = !puzzle.answered;
-  setLocalizedText(
-    elements.puzzleNext,
-    puzzle.roundIndex + 1 === total ? "查看结果" : "下一题",
-  );
-
-  elements.puzzleResult.hidden = !puzzle.answered;
-  if (puzzle.answered) {
-    elements.puzzleResult.dataset.correct = String(puzzle.roundCorrect);
-    setLocalizedText(
-      elements.puzzleResultTitle,
-      puzzle.roundCorrect ? "拼对了" : "次序还差一点",
-    );
-    setLocalizedText(elements.puzzleResultAnswer, `原句：${round.sourceLine}`);
-  } else {
-    elements.puzzleResult.dataset.correct = "";
-  }
-
-  queueMicrotask(() => focusPuzzleTarget(focusOptions));
-}
-
-function beginPuzzleGame(poem) {
-  const rounds = createPuzzleRounds(poem?.lines, { limit: 3 });
-  if (!rounds.length) {
-    updateNotice("这篇原文暂时没有适合拼图的完整诗句");
-    return false;
-  }
-  state.puzzle = {
-    poem,
-    rounds,
-    roundIndex: 0,
-    correct: 0,
-    answered: false,
-    roundCorrect: null,
-    activePieceId: null,
-    placedPieceIds: Array(rounds[0].pieces.length).fill(null),
-  };
-  elements.puzzlePractice.hidden = false;
-  elements.puzzleComplete.hidden = true;
-  setLocalizedText(elements.puzzleDialogTitle, `拼出《${poem.title}》`);
-  setLocalizedText(
-    elements.puzzleDialogMeta,
-    `${poem.dynasty} · ${poem.author} · 本局 ${rounds.length} 题；拼成后核对完整原句。`,
-  );
-  renderPuzzleRound({ focusZone: "bank" });
-  return true;
-}
-
-function openPuzzleGame() {
-  if (!state.current || state.busy) return;
-  clearAutoNextTimer();
-  if (!beginPuzzleGame(state.current)) {
+async function openPuzzleGame() {
+  try {
+    const controller = await loadPuzzleController();
+    await controller.open();
+  } catch (error) {
+    console.error(error);
     scheduleAutoNext();
-    return;
+    updateNotice("拼图功能暂未能加载，请稍后再试");
   }
-  if (!elements.puzzleDialog.open) elements.puzzleDialog.showModal();
-  queueMicrotask(() => focusPuzzleTarget({ focusZone: "bank" }));
-}
-
-function resetPuzzleRound() {
-  const puzzle = state.puzzle;
-  if (!puzzle || puzzle.answered) return;
-  puzzle.activePieceId = null;
-  puzzle.placedPieceIds = Array(currentPuzzleRound().pieces.length).fill(null);
-  renderPuzzleRound({ focusZone: "bank" });
-}
-
-function checkPuzzleAnswer() {
-  const puzzle = state.puzzle;
-  const round = currentPuzzleRound();
-  if (!puzzle || !round || puzzle.answered) return;
-  const placedPieces = puzzle.placedPieceIds
-    .map((pieceId) => puzzlePieceById(round, pieceId))
-    .filter(Boolean);
-  if (placedPieces.length !== round.pieces.length) return;
-
-  const correct = checkPuzzleOrder(placedPieces, round.target);
-  if (correct) puzzle.correct += 1;
-  puzzle.answered = true;
-  puzzle.roundCorrect = correct;
-  renderPuzzleRound();
-  queueMicrotask(() => elements.puzzleNext.focus({ preventScroll: true }));
-}
-
-function finishPuzzleGame() {
-  const puzzle = state.puzzle;
-  if (!puzzle) return;
-  const total = puzzle.rounds.length;
-  elements.puzzlePractice.hidden = true;
-  elements.puzzleComplete.hidden = false;
-  setLocalizedText(elements.puzzleScore, `本局拼对 ${puzzle.correct} / ${total} 题`);
-  setLocalizedText(
-    elements.puzzleCompleteNote,
-    puzzle.correct === total
-      ? "一字不差，原句次序已经稳稳落在心里。"
-      : puzzle.correct
-        ? "已经找回大半次序，再玩一局会更熟。"
-        : "刚刚见过的原句，正适合趁热再拼一次。",
-  );
-  revealWebInstallPrompt();
-  elements.puzzleReplay.focus({ preventScroll: true });
-}
-
-function advancePuzzleGame() {
-  const puzzle = state.puzzle;
-  if (!puzzle?.answered) return;
-  if (puzzle.roundIndex + 1 >= puzzle.rounds.length) {
-    finishPuzzleGame();
-    return;
-  }
-  puzzle.roundIndex += 1;
-  puzzle.answered = false;
-  puzzle.roundCorrect = null;
-  puzzle.activePieceId = null;
-  puzzle.placedPieceIds = Array(currentPuzzleRound().pieces.length).fill(null);
-  renderPuzzleRound({ focusZone: "bank" });
-}
-
-function replayPuzzleGame() {
-  const poem = state.puzzle?.poem;
-  if (poem) beginPuzzleGame(poem);
 }
 
 async function loadChunk(chunkName) {
@@ -3229,172 +2865,14 @@ async function copyCurrent() {
   }
 }
 
-function shareAppearance() {
-  const styles = getComputedStyle(document.documentElement);
-  return {
-    paper: styles.getPropertyValue("--paper"),
-    paperDeep: styles.getPropertyValue("--paper-deep"),
-    ink: styles.getPropertyValue("--ink"),
-    inkSoft: styles.getPropertyValue("--ink-soft"),
-    line: styles.getPropertyValue("--line"),
-    accent: styles.getPropertyValue("--cinnabar"),
-    moss: styles.getPropertyValue("--moss"),
-    serif: styles.getPropertyValue("--serif"),
-    kai: styles.getPropertyValue("--kai"),
-  };
-}
-
-function localizedSharePoem(poem) {
-  return {
-    ...poem,
-    title: displayText(poem.title),
-    dynasty: displayText(dynastyLabel(poem.dynasty)),
-    author: displayText(poem.author),
-    lines: poem.lines.map(displayText),
-  };
-}
-
-function shareCanvasBlob() {
-  return new Promise((resolve, reject) => {
-    elements.shareCanvas.toBlob((blob) => {
-      if (blob) resolve(blob);
-      else reject(new Error("图片导出失败"));
-    }, "image/png");
-  });
-}
-
-function canSharePosterFile() {
-  if (!globalThis.File || !navigator.share || !navigator.canShare) return false;
+async function openShareDialog() {
   try {
-    const probe = new File([""], "诗意一刻.png", { type: "image/png" });
-    return navigator.canShare({ files: [probe] });
-  } catch {
-    return false;
-  }
-}
-
-function loadShareIllustration({ url, verse, id }) {
-  const imageUrl = new URL(url, location.href);
-  if (imageUrl.origin !== location.origin) throw new Error("插画地址必须与页面同源");
-  const image = new Image();
-  return new Promise((resolve, reject) => {
-    image.onload = () => resolve({ image, verse, id });
-    image.onerror = () => reject(new Error("插画加载失败"));
-    image.src = imageUrl.href;
-  });
-}
-
-async function openShareDialog({ illustration } = {}) {
-  if (!state.current) return;
-  clearAutoNextTimer();
-  const poem = state.current;
-  state.sharePosterPoemId = null;
-  state.sharePosterVerse = null;
-  elements.shareLoading.hidden = false;
-  elements.shareCopyAction.disabled = true;
-  elements.shareDownloadAction.disabled = true;
-  setLocalizedText(elements.shareDialogStatus, "正在生成高清诗笺与二维码…");
-  setLocalizedText(
-    elements.shareDownloadLabel,
-    canSharePosterFile() ? "分享图片" : "下载高清图片",
-  );
-  if (!elements.shareDialog.open) elements.shareDialog.showModal();
-
-  try {
-    const { createSharePoster } = await loadSharePosterModule();
-    const loadedIllustration = illustration ? await loadShareIllustration(illustration) : null;
-    if (document.fonts?.ready) await document.fonts.ready;
-    createSharePoster(
-      elements.shareCanvas,
-      localizedSharePoem(poem),
-      shareAppearance(),
-      { illustration: loadedIllustration },
-    );
-    if (!elements.shareDialog.open || state.current?.id !== poem.id) return;
-    state.sharePosterPoemId = poem.id;
-    state.sharePosterVerse = loadedIllustration?.verse ?? null;
-    elements.shareLoading.hidden = true;
-    elements.shareCopyAction.disabled = false;
-    elements.shareDownloadAction.disabled = false;
-    setLocalizedText(
-      elements.shareDialogStatus,
-      loadedIllustration ? "插画诗笺已生成；二维码可直达对应图片。" : "高清 PNG 已生成；二维码可直接打开当前诗篇。",
-    );
-    elements.shareDownloadAction.focus({ preventScroll: true });
+    const controller = await loadShareController();
+    await controller.open();
   } catch (error) {
     console.error(error);
-    elements.shareLoading.hidden = true;
-    setLocalizedText(elements.shareDialogStatus, "诗笺生成未成功，请关闭后再试一次。");
-  }
-}
-
-async function copySharePoster() {
-  if (!state.current || state.sharePosterPoemId !== state.current.id) return;
-  if (!navigator.clipboard?.write || !globalThis.ClipboardItem) {
-    setLocalizedText(
-      elements.shareDialogStatus,
-      "当前浏览器暂不支持复制图片，请使用“下载高清图片”。",
-    );
-    return;
-  }
-  try {
-    const blob = await shareCanvasBlob();
-    await navigator.clipboard.write([
-      new ClipboardItem({ "image/png": blob }),
-    ]);
-    setLocalizedText(elements.shareDialogStatus, "图片已复制，可直接粘贴到聊天或笔记中。");
-  } catch (error) {
-    console.error(error);
-    setLocalizedText(
-      elements.shareDialogStatus,
-      "图片复制未成功，请改用“下载高清图片”。",
-    );
-  }
-}
-
-function downloadShareBlob(blob, fileName) {
-  const objectUrl = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = objectUrl;
-  link.download = fileName;
-  document.body.append(link);
-  link.click();
-  link.remove();
-  setTimeout(() => URL.revokeObjectURL(objectUrl), 1_000);
-}
-
-async function shareOrDownloadPoster() {
-  if (!state.current || state.sharePosterPoemId !== state.current.id) return;
-  try {
-    const { buildShareFileName } = await loadSharePosterModule();
-    const localizedPoem = localizedSharePoem(state.current);
-    const blob = await shareCanvasBlob();
-    const fileName = buildShareFileName(localizedPoem, state.sharePosterVerse);
-    if (canSharePosterFile()) {
-      const file = new File([blob], fileName, { type: "image/png" });
-      try {
-        await navigator.share({
-          files: [file],
-          title: `《${localizedPoem.title}》· 诗意一刻`,
-          text: `${localizedPoem.dynasty} · ${localizedPoem.author}`,
-        });
-        setLocalizedText(elements.shareDialogStatus, "分享面板已打开。");
-        return;
-      } catch (error) {
-        if (error?.name === "AbortError") return;
-        // 某些桌面环境声明支持文件分享却无法唤起面板，此时仍交付可用的高清图片。
-      }
-    }
-    downloadShareBlob(blob, fileName);
-    setLocalizedText(
-      elements.shareDialogStatus,
-      canSharePosterFile()
-        ? "系统分享暂不可用，已改为下载高清图片。"
-        : "高清图片已下载。",
-    );
-  } catch (error) {
-    console.error(error);
-    setLocalizedText(elements.shareDialogStatus, "图片分享未成功，请稍后重试。");
+    scheduleAutoNext();
+    updateNotice("分享功能暂未能加载，请稍后再试");
   }
 }
 
@@ -3576,26 +3054,6 @@ function bindEvents() {
   }
 
   elements.puzzleAction.addEventListener("click", openPuzzleGame);
-  elements.puzzleDialogClose.addEventListener("click", () => {
-    elements.puzzleDialog.close();
-  });
-  elements.puzzleDialog.addEventListener("click", (event) => {
-    if (event.target === elements.puzzleDialog) elements.puzzleDialog.close();
-  });
-  elements.puzzleDialog.addEventListener("close", () => {
-    state.puzzle = null;
-    scheduleAutoNext();
-    if (!elements.puzzleAction.disabled) {
-      elements.puzzleAction.focus({ preventScroll: true });
-    }
-  });
-  elements.puzzleReset.addEventListener("click", resetPuzzleRound);
-  elements.puzzleCheck.addEventListener("click", checkPuzzleAnswer);
-  elements.puzzleNext.addEventListener("click", advancePuzzleGame);
-  elements.puzzleReplay.addEventListener("click", replayPuzzleGame);
-  elements.puzzleFinish.addEventListener("click", () => {
-    elements.puzzleDialog.close();
-  });
 
   for (const button of elements.categoryButtons) {
     button.addEventListener("click", () => {
@@ -3745,20 +3203,6 @@ function bindEvents() {
   elements.favoriteAction.addEventListener("click", toggleFavorite);
   elements.copyAction.addEventListener("click", copyCurrent);
   elements.shareAction.addEventListener("click", openShareDialog);
-  elements.shareDialogClose.addEventListener("click", () => elements.shareDialog.close());
-  elements.shareDialog.addEventListener("click", (event) => {
-    if (event.target === elements.shareDialog) elements.shareDialog.close();
-  });
-  elements.shareDialog.addEventListener("close", () => {
-    state.sharePosterPoemId = null;
-    state.sharePosterVerse = null;
-    scheduleAutoNext();
-    if (!elements.shareAction.disabled) {
-      elements.shareAction.focus({ preventScroll: true });
-    }
-  });
-  elements.shareCopyAction.addEventListener("click", copySharePoster);
-  elements.shareDownloadAction.addEventListener("click", shareOrDownloadPoster);
   elements.onboardingGuideAction.addEventListener("click", focusOnboardingTarget);
   elements.onboardingGuideDismiss.addEventListener("click", dismissOnboarding);
   elements.webInstallDismiss.addEventListener("click", dismissWebInstallPrompt);

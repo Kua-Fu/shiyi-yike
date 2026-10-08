@@ -222,6 +222,71 @@ try {
   assert.match(await evaluate(cdp, `document.querySelector("#author-options .author-option").textContent`), /杜甫 · 诗圣/);
   await evaluate(cdp, `document.querySelector("#author-input").blur()`);
 
+  const initialResources = await evaluate(
+    cdp,
+    `performance.getEntriesByType("resource").map((entry) => entry.name)`,
+  );
+  for (const deferredResource of [
+    "reader-fonts.css",
+    "ZhiMangXing-Deep.woff2",
+    "ZhiMangXing-Extended.woff2",
+    "reader-share.js",
+    "reader-share.css",
+    "reader-puzzle.js",
+    "reader-puzzle.css",
+  ]) {
+    assert.equal(
+      initialResources.some((resource) => resource.includes(deferredResource)),
+      false,
+      `首屏不应请求按需资源 ${deferredResource}`,
+    );
+  }
+
+  await evaluate(cdp, `document.querySelector("#theme-trigger").click()`);
+  assert.equal(await evaluate(cdp, `document.querySelector("#theme-dialog").open`), true);
+  assert.equal(
+    await evaluate(cdp, `performance.getEntriesByType("resource").some((entry) => entry.name.includes("reader-fonts.css"))`),
+    false,
+    "只预览外观设置时不应下载行书",
+  );
+  await evaluate(cdp, `document.querySelector('[data-font-option="xingshu"]').click()`);
+  await waitFor(cdp, `document.documentElement.dataset.fontReady === "xingshu"`);
+  const xingshuResources = await evaluate(
+    cdp,
+    `performance.getEntriesByType("resource").map((entry) => entry.name)`,
+  );
+  assert.ok(xingshuResources.some((resource) => resource.includes("reader-fonts.css")));
+  assert.ok(xingshuResources.some((resource) => resource.includes("ZhiMangXing-Deep.woff2")));
+  assert.equal(
+    xingshuResources.some((resource) => resource.includes("ZhiMangXing-Extended.woff2")),
+    false,
+    "当前精读页不应提前下载行书扩展字符包",
+  );
+  await evaluate(cdp, `document.querySelector('[data-script-option="traditional"]').click()`);
+  await waitFor(cdp, `document.documentElement.dataset.script === "traditional"`);
+  await evaluate(cdp, `document.fonts.ready.then(() => true)`);
+  assert.equal(
+    await evaluate(cdp, `performance.getEntriesByType("resource").some((entry) => entry.name.includes("ZhiMangXing-Extended.woff2"))`),
+    false,
+    "繁体精读页也应复用精读字体包，不应提前下载扩展字符包",
+  );
+  await evaluate(cdp, `document.querySelector('[data-script-option="simplified"]').click()`);
+  await waitFor(cdp, `document.documentElement.dataset.script === "simplified"`);
+  await evaluate(cdp, `document.querySelector("#theme-dialog-close").click()`);
+
+  await evaluate(cdp, `document.querySelector("#puzzle-action").click()`);
+  await waitFor(cdp, `document.querySelector("#puzzle-dialog").open`);
+  assert.ok(await evaluate(cdp, `performance.getEntriesByType("resource").some((entry) => entry.name.includes("reader-puzzle.js"))`));
+  assert.ok(await evaluate(cdp, `performance.getEntriesByType("resource").some((entry) => entry.name.includes("reader-puzzle.css"))`));
+  await evaluate(cdp, `document.querySelector("#puzzle-dialog-close").click()`);
+
+  await evaluate(cdp, `document.querySelector("#share-action").click()`);
+  await waitFor(cdp, `document.querySelector("#share-dialog").open`);
+  await waitFor(cdp, `document.querySelector("#share-loading").hidden`);
+  assert.ok(await evaluate(cdp, `performance.getEntriesByType("resource").some((entry) => entry.name.includes("reader-share.js"))`));
+  assert.ok(await evaluate(cdp, `performance.getEntriesByType("resource").some((entry) => entry.name.includes("reader-share.css"))`));
+  await evaluate(cdp, `document.querySelector("#share-dialog-close").click()`);
+
   const axTree = await cdp.send("Accessibility.getFullAXTree");
   const unnamedControls = axTree.nodes.filter((node) =>
     !node.ignored &&
@@ -363,4 +428,4 @@ try {
   await new Promise((resolve) => server.close(resolve));
 }
 
-console.log("✓ 真实 Chrome 深链接、称号搜索、移动布局、无障碍名称、主题对比度与高对比度模式均通过验收");
+console.log("✓ 真实 Chrome 按需资源、深链接、称号搜索、移动布局、无障碍名称、主题对比度与高对比度模式均通过验收");

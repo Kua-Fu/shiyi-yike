@@ -10,7 +10,7 @@ const readJson = (relativePath) =>
 
 const manifest = readJson("manifest.json");
 assert.equal(manifest.manifest_version, 3, "扩展必须使用 Manifest V3");
-assert.equal(manifest.version, "1.16.0");
+assert.equal(manifest.version, "1.17.0");
 assert.equal(manifest.short_name, "诗意一刻", "工具栏应保留简短品牌名");
 assert.match(manifest.name, /古诗词精读与记忆/, "商店名称应直接说明产品用途");
 assert.match(manifest.description, /逐句读懂古诗词/, "商店短描述应从用户收益出发");
@@ -38,6 +38,14 @@ const requiredFiles = [
   "reader-config.js",
   "reader-routing.js",
   "reader-appearance.css",
+  "reader-fonts.css",
+  "reader-learning.css",
+  "reader-puzzle.css",
+  "reader-puzzle.js",
+  "reader-resource-loader.js",
+  "reader-search.css",
+  "reader-share.css",
+  "reader-share.js",
   "storage-adapter.js",
   "search-core.js",
   "search-worker.js",
@@ -50,7 +58,8 @@ const requiredFiles = [
   "data/deep-readings.json",
   "data/poems/startup.json",
   "data/poems/search-reviewed.json",
-  "assets/fonts/ZhiMangXing-Subset.woff2",
+  "assets/fonts/ZhiMangXing-Deep.woff2",
+  "assets/fonts/ZhiMangXing-Extended.woff2",
   "assets/fonts/ZhiMangXing-Subset.meta.json",
   "assets/fonts/ZhiMangXing-OFL.txt",
   "vendor/opencc-js/full.js",
@@ -711,6 +720,9 @@ const readerConfigSource = fs.readFileSync(path.join(projectRoot, "reader-config
 const readerRoutingSource = fs.readFileSync(path.join(projectRoot, "reader-routing.js"), "utf8");
 const searchCoreSource = fs.readFileSync(path.join(projectRoot, "search-core.js"), "utf8");
 const searchWorkerSource = fs.readFileSync(path.join(projectRoot, "search-worker.js"), "utf8");
+const resourceLoaderSource = fs.readFileSync(path.join(projectRoot, "reader-resource-loader.js"), "utf8");
+const puzzleControllerSource = fs.readFileSync(path.join(projectRoot, "reader-puzzle.js"), "utf8");
+const shareControllerSource = fs.readFileSync(path.join(projectRoot, "reader-share.js"), "utf8");
 assert.match(appSource, /state\.category === "收藏"/, "收藏入口应筛选本地收藏 ID");
 assert.match(appSource, /state\.period/, "朝代下拉应通过独立时期状态筛选");
 assert.match(appSource, /reviewMode: "deep"/, "应用状态应默认使用深度精读范围");
@@ -836,13 +848,29 @@ assert.match(newTabHtml, /data-font-option="xingshu"/, "外观面板应提供免
 assert.match(readerConfigSource, /\["xingshu", \{ name: "行书逸韵" \}\]/, "行书选项应接入字体状态");
 assert.doesNotMatch(newTabHtml, /data-font-option="caoshu"|草书飞扬/, "外观面板不应保留草书选项");
 assert.doesNotMatch(appSource, /caoshu|草书飞扬/, "字体状态不应保留已移除的草书映射");
+const fontStyles = fs.readFileSync(path.join(projectRoot, "reader-fonts.css"), "utf8");
+assert.doesNotMatch(newTabHtml, /<link[^>]+reader-fonts\.css/, "默认首屏不能直接加载可选行书样式");
 assert.match(
-  fs.readFileSync(path.join(projectRoot, "extension.css"), "utf8"),
-  /assets\/fonts\/ZhiMangXing-Subset\.woff2/,
-  "行书应加载扩展内置的 WOFF2 子集",
+  resourceLoaderSource,
+  /loadStylesheetOnce\([\s\S]+reader-fonts\.css/,
+  "只有字体状态切到行书时才应注入字体样式",
 );
+assert.equal((fontStyles.match(/@font-face/g) ?? []).length, 2, "行书应拆成精读与扩展两个互补字体包");
+assert.match(fontStyles, /ZhiMangXing-Deep\.woff2[\s\S]+unicode-range:/, "精读字体包应声明字符范围");
+assert.match(fontStyles, /ZhiMangXing-Extended\.woff2[\s\S]+unicode-range:/, "扩展字体包应声明字符范围");
 const fontSubsetMeta = readJson("assets/fonts/ZhiMangXing-Subset.meta.json");
+assert.equal(fontSubsetMeta.schemaVersion, 2, "字体元数据应记录分层子集结构");
 assert.ok(fontSubsetMeta.outputBytes < fontSubsetMeta.sourceBytes * 0.6, "字体子集应比原 TTF 至少缩小 40%");
+assert.ok(fontSubsetMeta.outputs.deep.bytes < 800_000, "用户选择行书后，100 篇精读首包应控制在 800KB 内");
+assert.ok(
+  fontSubsetMeta.outputs.deep.characterCount < fontSubsetMeta.outputs.extended.characterCount,
+  "精读字符集应显著小于全库扩展字符集",
+);
+assert.equal(
+  fs.existsSync(path.join(projectRoot, "assets/fonts/ZhiMangXing-Subset.woff2")),
+  false,
+  "旧的 1.8MB 单文件字体不应继续保留",
+);
 assert.equal(
   fs.existsSync(path.join(projectRoot, "assets/fonts/LiuJianMaoCao-Regular.ttf")),
   false,
@@ -1055,7 +1083,7 @@ assert.doesNotMatch(
   "默认简体首屏不应同步加载繁简转换组件",
 );
 assert.match(
-  appSource,
+  shareControllerSource,
   /import\("\.\/share-poster\.js"\)/,
   "分享海报与二维码组件应在用户打开分享时再加载",
 );
@@ -1125,7 +1153,14 @@ assert.match(
 );
 assert.doesNotMatch(pagesEntryHtml, /http-equiv="refresh"/, "官网不得再用自动跳转跳过产品说明");
 
-const extensionStyles = ["reader-appearance.css", "extension.css"]
+const extensionStyles = [
+  "reader-appearance.css",
+  "reader-search.css",
+  "reader-learning.css",
+  "reader-share.css",
+  "reader-puzzle.css",
+  "extension.css",
+]
   .map((file) => fs.readFileSync(path.join(projectRoot, file), "utf8"))
   .join("\n");
 assert.match(extensionStyles, /height <= 820px/, "应适配商店截图常用的 1280×800 视口");
@@ -1156,6 +1191,15 @@ assert.match(
 );
 assert.match(extensionStyles, /\.auto-next-field/, "应提供自动下一首控件样式");
 assert.match(extensionStyles, /\.auto-next-progress-track/, "应提供自动下一首进度条样式");
+assert.ok(appSource.split("\n").length < 3_500, "主控制器应保持在 3500 行以内，避免领域逻辑重新回流");
+assert.ok(
+  fs.readFileSync(path.join(projectRoot, "extension.css"), "utf8").split("\n").length < 3_000,
+  "主响应式样式应保持在 3000 行以内",
+);
+assert.match(appSource, /import\("\.\/reader-share\.js"\)/, "分享控制器应等到用户操作时再加载");
+assert.match(appSource, /import\("\.\/reader-puzzle\.js"\)/, "拼图控制器应等到用户操作时再加载");
+assert.match(shareControllerSource, /loadStylesheetOnce\("reader-share\.css"/, "分享弹层样式应随控制器按需加载");
+assert.match(puzzleControllerSource, /loadStylesheetOnce\("reader-puzzle\.css"/, "拼图弹层样式应随控制器按需加载");
 assert.match(extensionStyles, /\.library-panel/, "完整筛选应提供次级诗库抽屉样式");
 assert.match(extensionStyles, /\.verse-trigger/, "逐句点注应提供可交互诗句样式");
 assert.match(extensionStyles, /\.deep-reading-guide/, "应提供精读导览样式");

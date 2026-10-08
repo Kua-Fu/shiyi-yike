@@ -76,6 +76,7 @@ function renderHeader(prefix) {
         <a href="${prefix}poems/">精读</a>
         <a href="${prefix}authors/">诗人</a>
         <a href="${prefix}topics/">主题</a>
+        <a href="https://www.shidianguji.com/" target="_blank" rel="noopener noreferrer">图书馆</a>
         <a class="reader-link" href="${prefix}newtab.html">在线赏读</a>
       </nav>
     </header>`;

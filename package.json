@@ -1,6 +1,6 @@
 {
   "name": "shiyi-yike-chrome-extension",
-  "version": "1.16.0",
+  "version": "1.17.0",
   "type": "module",
   "private": true,
   "description": "诗意一刻 Chrome 古诗词阅读扩展",

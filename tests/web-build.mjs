@@ -16,6 +16,7 @@ const siteRoot = path.join(projectRoot, "dist", "site");
 const sourceLanding = fs.readFileSync(path.join(projectRoot, "index.html"), "utf8");
 const sourceReader = fs.readFileSync(path.join(projectRoot, "newtab.html"), "utf8");
 const sourceApp = fs.readFileSync(path.join(projectRoot, "app.js"), "utf8");
+const sourcePuzzleController = fs.readFileSync(path.join(projectRoot, "reader-puzzle.js"), "utf8");
 const sourceConfig = fs.readFileSync(path.join(projectRoot, "reader-config.js"), "utf8");
 const sourceRouting = fs.readFileSync(path.join(projectRoot, "reader-routing.js"), "utf8");
 const deploymentWorkflow = fs.readFileSync(
@@ -66,8 +67,8 @@ assert.match(
   /revealWebInstallPrompt\(\)/,
   "完成回想练习后仍应保留桌面安装邀请",
 );
-const puzzleCompletion = sourceApp.match(
-  /function finishPuzzleGame\(\) \{([\s\S]+?)\n\}\n\nfunction advancePuzzleGame/,
+const puzzleCompletion = sourcePuzzleController.match(
+  /function finishPuzzleGame\(\) \{([\s\S]+?)\n\s*\}\n\n\s*function advancePuzzleGame/,
 );
 assert.ok(puzzleCompletion, "应能定位诗句拼图完成逻辑");
 assert.match(
@@ -91,11 +92,24 @@ assert.match(deployedLanding, /"@type": "SoftwareApplication"/, "官网应提供
 assert.match(deployedLanding, /href="poems\/">浏览 100 篇精读目录/, "官网应提供静态精读目录入口");
 assert.match(deployedLanding, /href="authors\/">诗人</, "官网应直达可索引的诗人内容目录");
 assert.match(deployedLanding, /href="topics\/">主题</, "官网应直达可索引的主题内容目录");
+assert.match(
+  deployedLanding,
+  /href="https:\/\/www\.shidianguji\.com\/"[^>]*>图书馆</,
+  "官网图书馆入口应跳转到识典古籍",
+);
 assert.match(deployedLanding, /href="content-policy\/">内容方法</, "官网应公开内容校订方法与边界");
 assert.doesNotMatch(deployedLanding, /href="\/"/, "官网内链应兼容 GitHub Pages 项目子路径");
+assert.doesNotMatch(deployedReader, />图书馆<|shidianguji\.com/, "共享诗词阅读器不能把图书馆带入 Chrome 插件");
 
 // 手机端依赖安全区视口、覆盖式筛选和不小于 44px 的次级操作区，避免后续样式整理时退回拥挤布局。
-const responsiveCss = fs.readFileSync(path.join(projectRoot, "extension.css"), "utf8");
+const responsiveCss = [
+  "reader-appearance.css",
+  "reader-search.css",
+  "reader-learning.css",
+  "reader-share.css",
+  "reader-puzzle.css",
+  "extension.css",
+].map((file) => fs.readFileSync(path.join(projectRoot, file), "utf8")).join("\n");
 assert.match(sourceReader, /viewport-fit=cover/, "手机端应延伸到刘海屏安全区");
 assert.match(
   sourceReader,
@@ -153,17 +167,17 @@ assert.match(
   "手机端拼图板应保持足够大的操作与展示尺寸",
 );
 assert.match(
-  sourceApp,
+  sourcePuzzleController,
   /createPuzzleShape\([\s\S]+createJigsawPath\([\s\S]+PUZZLE_PIECE_COLORS/,
   "拼片应使用互补榫口轮廓和多种底色",
 );
 assert.match(
-  sourceApp,
+  sourcePuzzleController,
   /resolvePuzzleShapeIndex\([\s\S]+zone === "answer" \? slotIndex : null[\s\S]+createPuzzleShape\(shapeIndex/,
   "拼片进入拼图板后应使用槽位轮廓，避免文字顺序与板槽造型互相冲突",
 );
 assert.match(
-  sourceApp,
+  sourcePuzzleController,
   /addEventListener\("pointerdown"[\s\S]+elementFromPoint[\s\S]+movePuzzlePieceToSlot[\s\S]+window\.addEventListener\("pointermove"/,
   "拼片应使用同时兼容鼠标与触屏的 Pointer Events 完成拖放",
 );
@@ -241,6 +255,14 @@ for (const requiredEntry of [
   "reader-routing.js",
   "reader-appearance.css",
   "reader-illustrations.css",
+  "reader-fonts.css",
+  "reader-learning.css",
+  "reader-puzzle.css",
+  "reader-puzzle.js",
+  "reader-resource-loader.js",
+  "reader-search.css",
+  "reader-share.css",
+  "reader-share.js",
   "storage-adapter.js",
   "search-core.js",
   "search-worker.js",
@@ -251,7 +273,8 @@ for (const requiredEntry of [
   "assets/icons/icon-32.png",
   "assets/store/promo-marquee.svg",
   "assets/store/social-card-1400x560.png",
-  "assets/fonts/ZhiMangXing-Subset.woff2",
+  "assets/fonts/ZhiMangXing-Deep.woff2",
+  "assets/fonts/ZhiMangXing-Extended.woff2",
   "assets/fonts/ZhiMangXing-Subset.meta.json",
   "vendor/opencc-js/full.js",
   "vendor/qrcode-generator/qrcode.mjs",
