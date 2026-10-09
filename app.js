@@ -2439,7 +2439,7 @@ function renderPoem(poem, options = {}) {
   renderOnboardingGuide();
   syncPoemUrl(poem.id);
   if (options.scroll !== false) {
-    const illustration = /^#illustration-[1-4]$/.test(location.hash)
+    const illustration = /^#illustration-[1-9]\d*$/.test(location.hash)
       ? illustratedSection?.querySelector(location.hash)
       : null;
     if (illustration) {

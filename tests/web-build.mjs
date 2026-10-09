@@ -381,6 +381,17 @@ const illustratedPoems = [
   ["tang-2769113d-0cac-4e67-83cb-0c10685f8381", 8],
   ["tang-12919986-2d09-4d2e-b5ad-f2485e40ada5", 8],
   ["tang-5d05fef6-e4aa-48e5-917d-c29d0e6d6b33", 8],
+  ["seed-tang-69e9fa79b266ef25d3d8", 8],
+  ["seed-tang-a3d916ef981a854a0a51", 4],
+  ["tang-31cc87f3-da0f-421d-8674-8753530077e2", 6],
+  ["tang-204e287b-8194-4c2d-808b-11cc260412ae", 10],
+  ["tang-6d098c75-038d-45f4-8f86-73976c355e44", 8],
+  ["tang-a5b1f5c9-1ba7-4533-b497-55b1d4af1bbb", 8],
+  ["tang-9080a103-2750-4b9b-a4fa-1167cd670a0c", 8],
+  ["tang-0949fe2a-aadf-4cd4-b1c3-25fcdaecdb96", 8],
+  ["tang-2e8999a9-9df8-4483-ab1e-0231c3e46320", 4],
+  ["tang-36e09cb4-4fb7-48be-b6c6-c9bd906d9331", 4],
+  ["tang-6bbd1c2c-8c43-4ffb-b7b3-506d74266cee", 4],
 ];
 const startupPoems = JSON.parse(fs.readFileSync(path.join(projectRoot, "data/poems/startup.json"), "utf8")).poems;
 for (const [poemId, expectedCount] of illustratedPoems) {
