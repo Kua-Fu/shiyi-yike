@@ -2043,13 +2043,13 @@ function createReaderIllustrations(poem) {
     const figure = makeElement("figure", "reader-illustration-card illustrated-verse");
     figure.id = `illustration-${index + 1}`;
     const link = makeElement("a", "illustration-image-link");
-    link.href = `assets/poem-illustrations/jing-ye-si/${file}`;
+    link.href = `assets/poem-illustrations/${file}`;
     link.target = "_blank";
     link.rel = "noopener noreferrer";
     link.dataset.verse = displayText(line);
     setLocalizedAttribute(link, "aria-label", `查看第 ${index + 1} 句插画大图：${line}`);
     const image = makeElement("img", "");
-    image.src = `assets/poem-illustrations/jing-ye-si/${file.replace(/\.webp$/, "-thumb.webp")}`;
+    image.src = `assets/poem-illustrations/${file.replace(/\.webp$/, "-thumb.webp")}`;
     setLocalizedAttribute(image, "alt", alt);
     image.width = 720;
     image.height = 480;

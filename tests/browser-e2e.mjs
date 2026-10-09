@@ -362,6 +362,41 @@ try {
   );
   await evaluate(cdp, `document.querySelector("#share-dialog-close").click()`);
 
+  await navigate(cdp, `${origin}/newtab.html?poem=seed-tang-76fddedec15fe5992d27`);
+  await waitFor(cdp, `document.querySelector(".poem-title")?.textContent === "早发白帝城"`);
+  assert.equal(await evaluate(cdp, `document.querySelectorAll(".reader-illustration-card").length`), 4, "《早发白帝城》在线赏读应展示四张逐句插画");
+  await evaluate(cdp, `document.querySelector("#illustration-4 .illustration-image-link").click()`);
+  await waitFor(cdp, `document.querySelector(".reader-illustrations .poem-image-dialog").open`);
+  assert.match(
+    await evaluate(cdp, `document.querySelector(".reader-illustrations .poem-image-dialog img").src`),
+    /zao-fa-bai-di-cheng\/04-qing-zhou-yi-guo-wan-chong-shan\.webp$/,
+  );
+  await evaluate(cdp, `document.querySelector(".reader-illustrations .poem-image-share").click()`);
+  await waitFor(cdp, `document.querySelector("#share-dialog").open && document.querySelector("#share-loading").hidden`);
+  assert.match(await evaluate(cdp, `document.querySelector("#share-dialog-status").textContent`), /插画诗笺已生成/);
+  await evaluate(cdp, `document.querySelector("#share-dialog-close").click()`);
+
+  for (const [poemId, title, count] of [
+    ["seed-tang-f31387b81a5a217197c2", "望庐山瀑布", 4],
+    ["seed-tang-22d24dc50d375641beef", "闻王昌龄左迁龙标遥有此寄", 4],
+    ["tang-d5da9d7d-1e52-4992-8be5-73e556b07e0b", "清平调 一", 4],
+    ["tang-a7b8e17f-ee93-4bdc-a144-b1ba5ab32bb5", "行路难三首 三", 16],
+  ]) {
+    await navigate(cdp, `${origin}/newtab.html?poem=${poemId}`);
+    await waitFor(cdp, `document.querySelector(".poem-title")?.textContent === ${JSON.stringify(title)}`);
+    assert.equal(await evaluate(cdp, `document.querySelectorAll(".reader-illustration-card").length`), count, `《${title}》应逐句展示插画`);
+    await evaluate(cdp, `document.querySelector("#illustration-${count} .illustration-image-link").click()`);
+    await waitFor(cdp, `document.querySelector(".reader-illustrations .poem-image-dialog img")?.naturalWidth > 0`);
+    if (count === 16) {
+      await evaluate(cdp, `document.querySelector(".reader-illustrations .poem-image-share").click()`);
+      await waitFor(cdp, `document.querySelector("#share-dialog").open && document.querySelector("#share-loading").hidden`);
+      assert.match(await evaluate(cdp, `document.querySelector("#share-dialog-status").textContent`), /插画诗笺已生成/);
+      await evaluate(cdp, `document.querySelector("#share-dialog-close").click()`);
+    } else {
+      await evaluate(cdp, `document.querySelector(".reader-illustrations .poem-image-close").click()`);
+    }
+  }
+
   await navigate(cdp, `${origin}/newtab.html?poem=seed-tang-9d4a83c5a8d5fcd77de1`);
   await waitFor(cdp, `document.querySelector(".poem-title")?.textContent === "望岳"`);
   assert.equal(await evaluate(cdp, `document.querySelectorAll(".reader-illustration-card").length`), 0, "无配图诗篇不应出现插画区");
@@ -402,6 +437,18 @@ try {
     "手机端即使提示状态异常，也不应显示桌面 Chrome 安装入口",
   );
   await evaluate(cdp, `document.querySelector("#web-install-prompt").hidden = true`);
+
+  await navigate(cdp, `${origin}/newtab.html?poem=tang-a7b8e17f-ee93-4bdc-a144-b1ba5ab32bb5`);
+  await waitFor(cdp, `document.querySelectorAll(".reader-illustration-card").length === 16`);
+  assert.equal(await evaluate(cdp, `document.documentElement.scrollWidth <= innerWidth`), true, "长诗的 16 张插画在手机上不应撑宽页面");
+  await evaluate(cdp, `document.querySelector("#illustration-16 .illustration-image-link").click()`);
+  await waitFor(cdp, `document.querySelector(".reader-illustrations .poem-image-dialog").open`);
+  assert.equal(
+    await evaluate(cdp, `document.querySelector(".reader-illustrations .poem-image-dialog img").getBoundingClientRect().width <= innerWidth`),
+    true,
+    "手机端放大插画应限制在视口宽度内",
+  );
+  await evaluate(cdp, `document.querySelector(".reader-illustrations .poem-image-close").click()`);
 
   await cdp.send("Emulation.setEmulatedMedia", {
     media: "screen",

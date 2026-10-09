@@ -145,7 +145,7 @@ function renderPoemIllustrations(poem) {
     throw new Error(`插画诗句与《${poem.title}》原文不一致`);
   }
 
-  const basePath = "../../assets/poem-illustrations/jing-ye-si/";
+  const basePath = "../../assets/poem-illustrations/";
   const figures = illustrations.map(({ line, file, alt }, index) => `<figure class="illustrated-verse" id="illustration-${index + 1}">
             <a class="illustration-image-link" href="${basePath}${escapeHtml(file)}" target="_blank" rel="noopener noreferrer" data-verse="${escapeHtml(line)}" aria-label="放大插画：${escapeHtml(line)}。${escapeHtml(alt)}">
               <img src="${basePath}${escapeHtml(file.replace(/\.webp$/, "-thumb.webp"))}" alt="${escapeHtml(alt)}" width="720" height="480" loading="lazy" decoding="async">

@@ -41,6 +41,13 @@ export function buildShareFileName(poem, verse = "") {
   return `诗意一刻-${title}${author ? `-${author}` : ""}${scene ? `-${scene}` : ""}.png`;
 }
 
+export function selectSharePosterLines(lines, illustration) {
+  if (!illustration || lines.length <= 2) return lines;
+  const verse = String(illustration.verse ?? "").trim();
+  // 长诗插画分享优先展示被点击的原句，避免海报只截取开篇而与图片失去对应。
+  return [lines.find((line) => verse && line.includes(verse)) ?? (verse || lines[0])];
+}
+
 function roundedRect(context, x, y, width, height, radius) {
   const safeRadius = Math.min(radius, width / 2, height / 2);
   context.beginPath();
@@ -278,9 +285,10 @@ export function createSharePoster(canvas, poem, appearance = {}, { illustration 
     poemTop = imageY + imageHeight + 17;
   }
 
+  const posterLines = selectSharePosterLines(lines, illustration);
   const poemLayout = layoutPoem(
     context,
-    lines,
+    posterLines,
     serif,
     contentBottom - poemTop,
   );
@@ -330,5 +338,5 @@ export function createSharePoster(canvas, poem, appearance = {}, { illustration 
   context.textAlign = "center";
   context.fillText(illustration ? "扫码直达此图" : "扫码直达本篇", 848, 1380);
 
-  return { excerpt: poemLayout.excerpt, qrText };
+  return { excerpt: poemLayout.excerpt || posterLines !== lines, qrText };
 }

@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildPoemPages } from "./lib/poem-pages.mjs";
+import { POEM_ILLUSTRATIONS } from "../poem-illustration-data.js";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const outputDirectory = path.join(projectRoot, "dist", "site");
@@ -50,15 +51,11 @@ const runtimeEntries = [
   "assets/fonts/ZhiMangXing-OFL.txt",
   "assets/icons",
   "assets/store",
-  // 原图保留在项目中，网页先加载缩略图，点击时再打开完整插画。
-  "assets/poem-illustrations/jing-ye-si/01-chuang-qian-ming-yue-guang-thumb.webp",
-  "assets/poem-illustrations/jing-ye-si/01-chuang-qian-ming-yue-guang.webp",
-  "assets/poem-illustrations/jing-ye-si/02-yi-shi-di-shang-shuang-thumb.webp",
-  "assets/poem-illustrations/jing-ye-si/02-yi-shi-di-shang-shuang.webp",
-  "assets/poem-illustrations/jing-ye-si/03-ju-tou-wang-ming-yue-thumb.webp",
-  "assets/poem-illustrations/jing-ye-si/03-ju-tou-wang-ming-yue.webp",
-  "assets/poem-illustrations/jing-ye-si/04-di-tou-si-gu-xiang-thumb.webp",
-  "assets/poem-illustrations/jing-ye-si/04-di-tou-si-gu-xiang.webp",
+  // 按插画数据发布压缩图；网页先加载缩略图，点开时再加载大图。
+  ...Object.values(POEM_ILLUSTRATIONS).flatMap((illustrations) => illustrations.flatMap(({ file }) => [
+    `assets/poem-illustrations/${file.replace(/\.webp$/, "-thumb.webp")}`,
+    `assets/poem-illustrations/${file}`,
+  ])),
   "vendor/opencc-js/full.js",
   "vendor/qrcode-generator/qrcode.mjs",
   "vendor/qrcode-generator/qrcode_UTF8.mjs",

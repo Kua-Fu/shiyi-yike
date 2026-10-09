@@ -3,6 +3,7 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { POEM_ILLUSTRATIONS } from "../poem-illustration-data.js";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const build = spawnSync(process.execPath, ["scripts/build-web.mjs"], {
@@ -339,6 +340,68 @@ for (const [verse, file] of illustratedVerses) {
 assert.ok(jingYeSiPage.indexOf("id=\"original-title\"") < jingYeSiPage.indexOf("id=\"illustrations-title\""), "插画应排在原诗之后");
 assert.ok(jingYeSiPage.indexOf("id=\"illustrations-title\"") < jingYeSiPage.indexOf("id=\"translation-title\""), "插画应排在译文之前");
 assert.equal(fs.existsSync(path.join(siteRoot, "assets/poem-illustrations/jing-ye-si/01-chuang-qian-ming-yue-guang.png")), false, "发布包只需携带压缩版插画");
+
+const baiDiPage = fs.readFileSync(
+  path.join(poemDirectory, "seed-tang-76fddedec15fe5992d27", "index.html"),
+  "utf8",
+);
+const baiDiIllustrations = baiDiPage.match(/<section class="poem-illustrations"[\s\S]+?<\/section>/)?.[0];
+assert.ok(baiDiIllustrations, "《早发白帝城》应展示逐句插画");
+assert.equal((baiDiIllustrations.match(/class="illustrated-verse"/g) ?? []).length, 4, "《早发白帝城》四句应各有一张插画");
+const baiDiVerses = [
+  ["朝辞白帝彩云间", "01-chao-ci-bai-di-cai-yun-jian.webp"],
+  ["千里江陵一日还", "02-qian-li-jiang-ling-yi-ri-huan.webp"],
+  ["两岸猿声啼不住", "03-liang-an-yuan-sheng-ti-bu-zhu.webp"],
+  ["轻舟已过万重山", "04-qing-zhou-yi-guo-wan-chong-shan.webp"],
+];
+let previousBaiDiVersePosition = -1;
+for (const [verse, file] of baiDiVerses) {
+  const position = baiDiIllustrations.indexOf(verse);
+  assert.ok(position > previousBaiDiVersePosition, `《早发白帝城》插画顺序有误：${verse}`);
+  previousBaiDiVersePosition = position;
+  const basePath = "assets/poem-illustrations/zao-fa-bai-di-cheng";
+  const thumbFile = file.replace(/\.webp$/, "-thumb.webp");
+  assert.ok(baiDiIllustrations.includes(`src="../../${basePath}/${thumbFile}"`), `页面应先加载缩略图：${verse}`);
+  assert.ok(baiDiIllustrations.includes(`href="../../${basePath}/${file}"`), `插画应能打开大图：${verse}`);
+  assert.ok(fs.existsSync(path.join(siteRoot, basePath, thumbFile)), `发布包缺少缩略图：${thumbFile}`);
+  assert.ok(fs.existsSync(path.join(siteRoot, basePath, file)), `发布包缺少插画：${file}`);
+}
+assert.ok(baiDiPage.indexOf('id="original-title"') < baiDiPage.indexOf('id="illustrations-title"'));
+assert.ok(baiDiPage.indexOf('id="illustrations-title"') < baiDiPage.indexOf('id="translation-title"'));
+assert.equal(fs.existsSync(path.join(siteRoot, "assets/poem-illustrations/zao-fa-bai-di-cheng/01-chao-ci-bai-di-cai-yun-jian.png")), false, "发布包不应包含原始 PNG");
+
+// 新增诗篇必须逐半句配图，且静态页、缩略图、大图与分享锚点都能对应。
+const illustratedPoems = [
+  ["seed-tang-f31387b81a5a217197c2", 4],
+  ["seed-tang-22d24dc50d375641beef", 4],
+  ["tang-d5da9d7d-1e52-4992-8be5-73e556b07e0b", 4],
+  ["tang-a7b8e17f-ee93-4bdc-a144-b1ba5ab32bb5", 16],
+];
+const startupPoems = JSON.parse(fs.readFileSync(path.join(projectRoot, "data/poems/startup.json"), "utf8")).poems;
+for (const [poemId, expectedCount] of illustratedPoems) {
+  const poem = startupPoems.find(({ id }) => id === poemId);
+  const illustrations = POEM_ILLUSTRATIONS[poemId];
+  assert.ok(poem && illustrations, `缺少诗篇或插画配置：${poemId}`);
+  const expectedVerses = poem.lines.flatMap((line) => line.replace(/[。！？]$/, "").split(/[，；]/));
+  assert.equal(expectedVerses.length, expectedCount);
+  assert.deepEqual(illustrations.map(({ line }) => line), expectedVerses, `《${poem.title}》应逐半句按原文顺序配图`);
+  const page = fs.readFileSync(path.join(poemDirectory, poemId, "index.html"), "utf8");
+  const section = page.match(/<section class="poem-illustrations"[\s\S]+?<\/section>/)?.[0];
+  assert.ok(section, `《${poem.title}》静态页缺少插画区`);
+  assert.equal((section.match(/class="illustrated-verse"/g) ?? []).length, expectedCount);
+  assert.equal((section.match(/id="illustration-\d+"/g) ?? []).length, expectedCount);
+  assert.ok(page.indexOf('id="original-title"') < page.indexOf('id="illustrations-title"'));
+  assert.ok(page.indexOf('id="illustrations-title"') < page.indexOf('id="translation-title"'));
+  for (const { file } of illustrations) {
+    const full = `assets/poem-illustrations/${file}`;
+    const thumb = full.replace(/\.webp$/, "-thumb.webp");
+    assert.ok(section.includes(`href="../../${full}"`), `静态页缺少大图：${full}`);
+    assert.ok(section.includes(`src="../../${thumb}"`), `静态页缺少缩略图：${thumb}`);
+    assert.ok(fs.existsSync(path.join(siteRoot, full)), `发布包缺少大图：${full}`);
+    assert.ok(fs.existsSync(path.join(siteRoot, thumb)), `发布包缺少缩略图：${thumb}`);
+    assert.equal(fs.existsSync(path.join(siteRoot, full.replace(/\.webp$/, ".png"))), false, "发布包不应携带原始 PNG");
+  }
+}
 
 const authorDirectory = path.join(siteRoot, "authors");
 const authorIndex = fs.readFileSync(path.join(authorDirectory, "index.html"), "utf8");
