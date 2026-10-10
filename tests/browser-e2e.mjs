@@ -397,6 +397,15 @@ try {
     ["tang-2e8999a9-9df8-4483-ab1e-0231c3e46320", "辋川集 鹿柴", 4],
     ["tang-36e09cb4-4fb7-48be-b6c6-c9bd906d9331", "辋川集 竹里馆", 4],
     ["tang-6bbd1c2c-8c43-4ffb-b7b3-506d74266cee", "九月九日忆山东兄弟", 4],
+    ["seed-tang-bc3d89f6bba6dcba9eac", "夜雨寄北", 4],
+    ["seed-tang-0dd7cac1c6fe7e07d44c", "无题·相见时难别亦难", 8],
+    ["tang-e0eb3016-9288-4dc0-9257-3de36e5ad73c", "锦瑟", 8],
+    ["tang-d7c6d072-6e84-482e-856a-5a4c21226a3c", "乐游原", 4],
+    ["tang-d32a2610-09d7-49ad-8cdf-dd9c649144c7", "风雨", 8],
+    ["tang-fb376b71-91c6-44ee-b2e4-40f5b3f71b8f", "寄令狐郎中", 4],
+    ["tang-7377e34a-1aab-47e3-a6dd-376c98a5d6b7", "无题四首 一", 8],
+    ["tang-91f95b30-c42f-470a-9df8-dd6284fca474", "隋宫", 4],
+    ["tang-02456f60-6ab5-4de8-b9ed-f7519818f0ca", "贾生", 4],
   ]) {
     await navigate(cdp, `${origin}/newtab.html?poem=${poemId}`);
     await waitFor(cdp, `document.querySelector(".poem-title")?.textContent === ${JSON.stringify(title)}`);

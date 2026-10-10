@@ -3,6 +3,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { POEM_ILLUSTRATIONS } from "../poem-illustration-data.js";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const manifest = JSON.parse(
@@ -16,6 +17,11 @@ const outputPath = path.join(
 const stagingDirectory = await fs.mkdtemp(
   path.join(os.tmpdir(), "shiyi-yike-extension-"),
 );
+// 扩展离线阅读也需要每句配图；只打包配置中实际引用的压缩图。
+const illustrationEntries = Object.values(POEM_ILLUSTRATIONS).flatMap((illustrations) => illustrations.flatMap(({ file }) => [
+  `assets/poem-illustrations/${file.replace(/\.webp$/, "-thumb.webp")}`,
+  `assets/poem-illustrations/${file}`,
+]));
 
 const runtimeEntries = [
   "manifest.json",
@@ -57,6 +63,7 @@ const runtimeEntries = [
   "assets/fonts/ZhiMangXing-Subset.meta.json",
   "assets/fonts/ZhiMangXing-OFL.txt",
   "assets/icons",
+  ...illustrationEntries,
   "vendor/opencc-js/full.js",
   "vendor/opencc-js/LICENSE",
   "vendor/opencc-js/THIRD_PARTY_LICENSES.md",
@@ -148,6 +155,7 @@ try {
     "data/poems/search.json",
     "data/deep-readings.json",
     "data/sources/content-license-audit.json",
+    ...illustrationEntries,
   ]) {
     if (!entries.includes(requiredEntry)) {
       throw new Error(`扩展包缺少必需文件：${requiredEntry}`);
